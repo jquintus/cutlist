@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "name": "OmniSled Full Size",
+  "date": "2026-09-12",
+  "notes": "Stock on hand is exactly one 48 x 96 sheet of 1/4 in plywood and one 48 x 96 sheet of 1/2 in plywood.\nThe 6 mm parts come off the 1/4 in sheet. There is no 3/4 in plywood on hand, so the fence parts land on the shopping list on purpose.\nThe packer is a heuristic. Check every measurement against your own stock before you cut anything.",
+  "displaySystem": "imperial",
+  "params": {
+    "kerfIn": 0.125,
+    "edgeTrimIn": 0
+  },
+  "materials": [
+    {
+      "id": "m-half",
+      "name": "1/2 in plywood",
+      "thicknessIn": 0.5,
+      "thicknessLabel": "1/2 in",
+      "note": "",
+      "color": "#2f6f9f",
+      "sheets": [
+        {
+          "id": "m-half-s1",
+          "label": "48 x 96",
+          "widthIn": 48,
+          "lengthIn": 96,
+          "qty": 1,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "m-quarter",
+      "name": "1/4 in plywood (6 mm substitute)",
+      "thicknessIn": 0.25,
+      "thicknessLabel": "1/4 in",
+      "note": "The 6 mm parts are cut from this 1/4 in sheet, the standard US substitute for 6 mm. That substitution is a decision recorded here, not something the tool works out.",
+      "color": "#b1591f",
+      "sheets": [
+        {
+          "id": "m-quarter-s1",
+          "label": "48 x 96",
+          "widthIn": 48,
+          "lengthIn": 96,
+          "qty": 1,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "m-three-quarter",
+      "name": "3/4 in plywood",
+      "thicknessIn": 0.75,
+      "thicknessLabel": "3/4 in",
+      "note": "Nothing on hand. Everything in this group goes on the shopping list.",
+      "color": "#3f7f4f",
+      "sheets": [
+        {
+          "id": "m-three-quarter-s1",
+          "label": "48 x 96 (to buy)",
+          "widthIn": 48,
+          "lengthIn": 96,
+          "qty": 0,
+          "note": ""
+        }
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "id": "full-base",
+      "name": "Base",
+      "qty": 1,
+      "widthIn": 30,
+      "lengthIn": 25.5,
+      "materialId": "m-half",
+      "grainLocked": false
+    },
+    {
+      "id": "full-base-riser",
+      "name": "Base Riser",
+      "qty": 2,
+      "widthIn": 15,
+      "lengthIn": 25.5,
+      "materialId": "m-quarter",
+      "grainLocked": false
+    },
+    {
+      "id": "full-beveled-fence",
+      "name": "Beveled Fence",
+      "qty": 2,
+      "widthIn": 3.5,
+      "lengthIn": 15,
+      "materialId": "m-quarter",
+      "grainLocked": false
+    },
+    {
+      "id": "full-front-fence",
+      "name": "Front Fence",
+      "qty": 2,
+      "widthIn": 3.5,
+      "lengthIn": 8,
+      "materialId": "m-three-quarter",
+      "grainLocked": false
+    },
+    {
+      "id": "full-back-fence",
+      "name": "Back Fence",
+      "qty": 1,
+      "widthIn": 3.5,
+      "lengthIn": 30,
+      "materialId": "m-three-quarter",
+      "grainLocked": false
+    }
+  ],
+  "unplanned": [
+    {
+      "name": "Miter Bar",
+      "qty": 2,
+      "note": "Hardwood, not a sheet good. Linear board stock is deferred to round 2."
+    }
+  ]
+}

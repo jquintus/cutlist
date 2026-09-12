@@ -1,24 +1,39 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>cutlist</title>
-<style>
-  body { font-family: system-ui, -apple-system, sans-serif; margin: 0;
-         min-height: 100vh; display: grid; place-items: center;
-         background: #faf8f5; color: #2b2b2b; text-align: center; padding: 24px; }
-  h1 { font-size: 2rem; margin: 0 0 .5rem; }
-  p { margin: .25rem 0; color: #6b6257; }
-  code { background: #eee8e0; padding: 2px 6px; border-radius: 4px; }
-</style>
+<link rel="stylesheet" href="styles/app.css" />
+<link rel="stylesheet" href="styles/print.css" />
 </head>
 <body>
-  <main>
-    <h1>hello world</h1>
-    <p>cutlist is being built right now.</p>
-    <p>Refresh this page later to see the real thing.</p>
-    <p><code>jquintus/cutlist</code></p>
-  </main>
+<header class="app-head">
+  <h1>cutlist</h1>
+  <p class="muted">Plywood in, a guillotine cut plan out. Check every measurement before you cut.</p>
+  <div class="row app-controls">
+    <div class="project-picker">
+      <label for="project-picker">Saved projects</label>
+      <select id="project-picker"><option value="">Loading...</option></select>
+    </div>
+    <div><button id="btn-share" type="button">Copy share link</button></div>
+    <div><button id="btn-print" type="button" class="secondary">Print cut list</button></div>
+  </div>
+  <div class="row app-controls">
+    <div><button id="btn-export" type="button" class="secondary">Export JSON</button></div>
+    <div><button id="btn-import" type="button" class="secondary">Import JSON</button></div>
+    <div><button id="btn-upload" type="button" class="secondary">Direct upload</button></div>
+  </div>
+  <p id="picker-status" class="muted"></p>
+  <p id="status" class="muted"></p>
+  <input id="import-file" type="file" accept="application/json,.json" hidden />
+</header>
+
+<main>
+  <div id="results"></div>
+  <div id="forms"></div>
+</main>
+
+<script type="module" src="src/ui/app.js"></script>
 </body>
 </html>

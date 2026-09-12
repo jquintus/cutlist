@@ -1,0 +1,65 @@
+# Keeps projects/index.json in step with the project files beside it.
+#
+# index.json is generated, never hand edited. The verify job on pull requests
+# is what enforces that: it regenerates the file and fails if the result
+# differs from what the branch committed.
+
+name: projects index
+
+on:
+  pull_request:
+    paths:
+      - 'projects/**'
+      - 'tools/build-index.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'projects/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Regenerate the index
+        run: node tools/build-index.mjs
+      - name: Fail if the committed index does not match
+        run: |
+          git diff --exit-code -- projects/index.json \
+            || { echo "projects/index.json is out of date. Run 'node tools/build-index.mjs' and commit the result."; exit 1; }
+
+  regenerate:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Regenerate the index
+        run: node tools/build-index.mjs
+      # This cannot loop, for two independent reasons. A push made with the
+      # default GITHUB_TOKEN does not trigger workflows, and the diff guard
+      # below makes a run that changes nothing a no-op anyway. No actor guard
+      # is needed on top of that.
+      - name: Commit the index when it changed
+        run: |
+          if git diff --quiet -- projects/index.json; then
+            echo "projects/index.json is already current."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add projects/index.json
+          git commit -m 'Regenerate projects/index.json'
+          git push

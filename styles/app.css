@@ -1,0 +1,168 @@
+/* Phone first. The person reading this is standing at a saw holding a phone,
+   so the diagram has to be reachable without scrolling past every form. */
+
+:root {
+  --ink: #14181c;
+  --ink-soft: #55606b;
+  --paper: #f7f6f2;
+  --panel: #ffffff;
+  --line: #cfd4da;
+  --accent: #2f6f9f;
+  --warn-bg: #fff4d6;
+  --warn-line: #d4a017;
+  --buy-bg: #e8f1f8;
+  --buy-line: #2f6f9f;
+  --tap: 44px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 16px 64px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+header.app-head {
+  padding: 16px 0 8px;
+  border-bottom: 2px solid var(--line);
+}
+
+h1 { font-size: 1.35rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 0 0 8px; }
+h3 { font-size: 1rem; margin: 0 0 6px; }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.row > * { flex: 1 1 140px; min-width: 0; }
+
+label { display: block; font-size: 0.82rem; color: var(--ink-soft); }
+
+input, select, textarea, button {
+  font: inherit;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+input[type="checkbox"] {
+  width: var(--tap);
+  height: var(--tap);
+  min-height: 0;
+}
+
+button {
+  min-width: var(--tap);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary { background: var(--panel); color: var(--ink); border-color: var(--line); }
+button.danger { background: var(--panel); color: #9a2b2b; border-color: var(--line); }
+
+details.panel {
+  margin: 12px 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+details.panel > summary {
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+details.panel > .panel-body { padding: 0 12px 12px; }
+
+.entry {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.notes-banner {
+  margin: 12px 0;
+  padding: 12px;
+  border-left: 5px solid var(--accent);
+  background: var(--panel);
+  white-space: pre-wrap;
+}
+
+.banner-buy {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--buy-line);
+  border-left-width: 5px;
+  border-radius: 6px;
+  background: var(--buy-bg);
+  font-weight: 600;
+}
+
+.banner-warn {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-line);
+  border-left-width: 5px;
+  border-radius: 6px;
+  background: var(--warn-bg);
+}
+
+.banner-warn ul, .unplanned ul { margin: 6px 0 0; padding-left: 20px; }
+
+.unplanned {
+  margin: 16px 0;
+  padding: 12px;
+  border: 2px dashed var(--ink-soft);
+  border-radius: 8px;
+  background: repeating-linear-gradient(45deg, #fff, #fff 10px, #f0efe9 10px, #f0efe9 20px);
+}
+
+/* Sheets stack in one column. The diagram is the primary view at phone width. */
+.sheets { display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+.sheet-block {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.sheet-svg {
+  display: block;
+  max-width: 100%;
+  max-height: 78vh;
+  margin: 0 auto 8px;
+  background: #fff;
+}
+
+.cut-label { fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.09; }
+.cut-dims { fill: #f2f2f2; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.06; }
+
+.table-wrap { overflow-x: auto; }
+
+table.cut-list { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+table.cut-list th, table.cut-list td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+table.cut-list tr.row-sheet th { background: #eceef1; }
+table.cut-list tr.row-part td:first-child { font-weight: 700; }
+
+.muted { color: var(--ink-soft); font-size: 0.86rem; }
+
+@media (min-width: 900px) {
+  body { padding: 0 24px 64px; }
+  .sheets { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+}

@@ -1,0 +1,87 @@
+/* Ink friendly print. Assume a monochrome laser printer and no color at all:
+   a part is identified by its printed label, never by its fill. */
+
+@page {
+  margin: 0.5in;
+}
+
+@media print {
+  :root { --ink: #000; }
+
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  /* App chrome has no business on paper. */
+  header.app-head,
+  details.panel,
+  form,
+  nav,
+  button,
+  input,
+  select,
+  textarea,
+  .app-controls,
+  .project-picker,
+  .no-print {
+    display: none !important;
+  }
+
+  .notes-banner,
+  .banner-buy,
+  .banner-warn,
+  .unplanned {
+    border: 1pt solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .unplanned { background-image: none !important; }
+
+  .sheets { display: block; }
+
+  .sheet-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1pt solid #000;
+    margin-bottom: 12pt;
+  }
+
+  /* Fix the height rather than the width. A 48 x 96 sheet drawn to the full
+     page width is taller than the page, and break-inside is ignored on a block
+     that tall, so the sheet would be torn across two sheets of paper. Fixing
+     the height lets the viewBox derive the width and keeps it on one page. */
+  .sheet-svg {
+    width: auto;
+    height: 6.8in;
+    max-width: 100%;
+    max-height: none;
+  }
+
+  /* Outline only. A CSS rule beats the inline presentation attribute, so the
+     color the screen uses to group parts simply stops existing on paper. */
+  .sheet-svg .cut-rect {
+    fill: none !important;
+    stroke: #000 !important;
+    stroke-width: 0.12 !important;
+  }
+
+  .sheet-svg .sheet-edge { fill: #fff !important; stroke: #000 !important; }
+  .sheet-svg .sheet-usable { stroke: #666 !important; }
+
+  .sheet-svg .cut-label,
+  .sheet-svg .cut-dims {
+    fill: #000 !important;
+    stroke: none !important;
+  }
+
+  .table-wrap { overflow: visible; }
+
+  table.cut-list { font-size: 9.5pt; width: 100%; }
+  table.cut-list th, table.cut-list td { border: 0.5pt solid #000; color: #000; }
+  table.cut-list tr.row-sheet th { background: #fff !important; border-top: 1.5pt solid #000; }
+  table.cut-list tr { break-inside: avoid; page-break-inside: avoid; }
+}
