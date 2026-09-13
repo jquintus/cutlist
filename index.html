@@ -4,8 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>cutlist</title>
-<link rel="stylesheet" href="styles/app.css" />
-<link rel="stylesheet" href="styles/print.css" />
+<link rel="stylesheet" href="styles/app.css?v=8426844da417" />
+<link rel="stylesheet" href="styles/print.css?v=dffc207bdc7d" />
 </head>
 <body>
 <header class="app-head">
@@ -18,7 +18,7 @@
     </button>
     <div class="menu-body" id="menu-body" role="menu" hidden>
       <button id="btn-new" type="button" role="menuitem">New project</button>
-      <button id="btn-open" type="button" role="menuitem">Open example&hellip;</button>
+      <button id="btn-open" type="button" role="menuitem">Open project&hellip;</button>
       <hr />
       <button id="btn-share" type="button" role="menuitem">Copy share link</button>
       <button id="btn-export" type="button" role="menuitem">Export JSON</button>
@@ -33,8 +33,8 @@
 
 <dialog id="dialog-open">
   <form method="dialog">
-    <h2>Open an example project</h2>
-    <label for="project-picker">Projects in this build</label>
+    <h2>Open a project</h2>
+    <label for="project-picker">Saved in the repo</label>
     <select id="project-picker"><option value="">Loading&hellip;</option></select>
     <p id="picker-status" class="muted"></p>
     <div class="row"><button value="cancel">Close</button></div>

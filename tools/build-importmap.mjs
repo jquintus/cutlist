@@ -31,6 +31,11 @@ async function moduleFiles(dir) {
 
 const files = [...(await moduleFiles('src')), ...(await moduleFiles('vendor'))].sort();
 
+async function hashOf(file) {
+  const bytes = await readFile(join(ROOT, file));
+  return createHash('sha256').update(bytes).digest('hex').slice(0, 12);
+}
+
 const imports = {};
 for (const file of files) {
   const bytes = await readFile(join(ROOT, file));
@@ -54,6 +59,19 @@ if (from === -1) {
   );
 } else {
   html = html.slice(0, from) + map + html.slice(html.indexOf(END, from) + END.length);
+}
+
+// Stylesheets are not modules and never pass through the import map, so their
+// <link> hrefs are hashed directly. Leaving them unhashed is not a smaller
+// version of the same bug, it is the same bug: a CSS-only change then ships an
+// index.html that browsers pair with yesterday's stylesheet for four hours.
+for (const sheet of ['styles/app.css', 'styles/print.css']) {
+  const hash = await hashOf(sheet);
+  const escaped = sheet.replace(/[/.]/g, (ch) => `\\${ch}`);
+  html = html.replace(
+    new RegExp(`href="${escaped}(?:\\?v=[0-9a-f]+)?"`),
+    `href="${sheet}?v=${hash}"`,
+  );
 }
 
 // The entry point is not reached through the import map, since nothing imports

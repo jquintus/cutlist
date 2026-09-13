@@ -1,5 +1,21 @@
-/* Phone first. The person reading this is standing at a saw holding a phone,
-   so the diagram has to be reachable without scrolling past every form. */
+/* cutlist
+ *
+ * One stylesheet, one design, written from nothing.
+ *
+ * The sheet this replaces had a base rule making every button in the document
+ * a full width slab (`input, select, textarea, button { width: 100% }` with a
+ * solid accent background on `button`). Scoped rules added later lost to it, so
+ * a hamburger became a blue bar across the page and a nudge control became a
+ * blue block taller than the field it nudges.
+ *
+ * The rule that keeps that from coming back: no bare element selector ever
+ * gives an element a size. Elements get typography and color. Size, width and
+ * layout come from a class, so a control is only ever as large as its job.
+ *
+ * Layout is two columns wherever there is room, because the two things a person
+ * compares constantly are the sheet diagram and the list of cuts describing it.
+ * One column on a phone, where there is no width to spend.
+ */
 
 :root {
   --ink: #14181c;
@@ -7,12 +23,14 @@
   --paper: #f7f6f2;
   --panel: #ffffff;
   --line: #cfd4da;
+  --line-soft: #e8ebee;
   --accent: #2f6f9f;
+  --accent-soft: #eaf1f7;
+  --danger: #9a2b2b;
   --warn-bg: #fff4d6;
   --warn-line: #d4a017;
   --buy-bg: #e8f1f8;
   --buy-line: #2f6f9f;
-  --tap: 44px;
 }
 
 * { box-sizing: border-box; }
@@ -21,517 +39,203 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  padding: 0 16px 64px;
+  padding: 0 20px 48px;
   background: var(--paper);
   color: var(--ink);
-  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  overflow-x: hidden;
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-header.app-head {
-  padding: 16px 0 8px;
+h1, h2, h3 { margin: 0; font-weight: 700; }
+
+/* Typography and color only. Size belongs to a class. */
+input, select, textarea, button { font: inherit; color: var(--ink); }
+
+input[type="text"], input[type="number"], input[type="date"], select, textarea {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+textarea { width: 100%; resize: vertical; }
+
+.muted { color: var(--ink-soft); }
+
+/* ---------------------------------------------------------------------------
+   Header and menu
+   --------------------------------------------------------------------------- */
+
+.app-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 0 10px;
   border-bottom: 2px solid var(--line);
 }
 
-/* The project's name is the heading; every action lives behind one menu, so
-   the header stays one line tall on a phone. */
-.head-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
-.head-row h1 { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.app-head h1 { flex: 1 1 auto; min-width: 0; font-size: 1.3rem; overflow-wrap: anywhere; }
 
-.menu { flex: 0 0 auto; position: relative; }
+.menu { position: relative; flex: 0 0 auto; }
 
-/* The menu is a button and a panel, not a disclosure widget. A <details> reads
-   to a screen reader as an expandable section of the document and does not
-   close when you click elsewhere, which is not how a menu behaves. */
-.menu > button {
-  min-height: var(--tap);
-  display: flex;
+/* A button and a panel, never a <details>: a disclosure widget does not close
+   when you click away and reads as a section of the document. */
+.icon-button {
+  display: inline-flex;
   align-items: center;
-  padding: 8px 14px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  color: var(--ink);
-  font: inherit;
   cursor: pointer;
 }
 
-.menu > button[aria-expanded="true"] { border-color: var(--ink); }
+.icon-button[aria-expanded="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
 
 .menu-body {
   position: absolute;
+  top: calc(100% + 6px);
   right: 0;
-  z-index: 20;
-  min-width: 15rem;
+  z-index: 30;
+  min-width: 14rem;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--panel);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
 }
 
-.menu-body hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.menu-body hr { width: 100%; margin: 5px 0; border: 0; border-top: 1px solid var(--line-soft); }
 
-.menu-body a,
-.menu-body button {
-  display: flex;
-  align-items: center;
+/* The GitHub entry stays an anchor so middle-click and open-in-new-tab keep
+   working, and is styled exactly like the buttons beside it so it does not
+   read as the odd one out. */
+.menu-body button,
+.menu-body a {
+  display: block;
   width: 100%;
-  min-height: var(--tap);
-  padding: 8px 10px;
+  padding: 7px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: none;
   color: var(--ink);
-  font: inherit;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 
-.menu-body a:hover,
-.menu-body button:hover { background: var(--hover, rgba(0,0,0,.06)); }
+.menu-body button:hover, .menu-body a:hover { background: var(--accent-soft); }
 
-dialog {
-  width: min(28rem, 92vw);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--ink);
-}
-
-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
-dialog h2 { margin-top: 0; }
-dialog label { margin-top: 10px; }
-
-h1 { font-size: 1.35rem; margin: 0 0 4px; }
-h2 { font-size: 1.1rem; margin: 0 0 8px; }
-h3 { font-size: 1rem; margin: 0 0 6px; }
-
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
-.row > * { flex: 1 1 140px; min-width: 0; }
-
-label { display: block; font-size: 0.82rem; color: var(--ink-soft); }
-
-input, select, textarea, button {
-  font: inherit;
-  width: 100%;
-  min-height: var(--tap);
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--ink);
-}
-
-input[type="checkbox"] {
-  width: var(--tap);
-  height: var(--tap);
-  min-height: 0;
-}
-
-button {
-  min-width: var(--tap);
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  cursor: pointer;
-}
-
-button.secondary { background: var(--panel); color: var(--ink); border-color: var(--line); }
-button.danger { background: var(--panel); color: #9a2b2b; border-color: var(--line); }
-
-details.panel {
-  margin: 12px 0;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-details.panel > summary {
-  min-height: var(--tap);
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-details.panel > .panel-body { padding: 0 12px 12px; }
-
-.entry {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px;
-  margin-bottom: 8px;
-}
-
-.notes-banner {
-  margin: 12px 0;
-  padding: 12px;
-  border-left: 5px solid var(--accent);
-  background: var(--panel);
-  white-space: pre-wrap;
-}
-
-.banner-buy {
-  margin: 8px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--buy-line);
-  border-left-width: 5px;
-  border-radius: 6px;
-  background: var(--buy-bg);
-  font-weight: 600;
-}
-
-/* One list for the whole project, above the groups, and it goes to paper. */
-.shopping-list {
-  margin: 12px 0;
-  padding: 10px 14px;
-  border: 1px solid var(--buy-line);
-  border-left-width: 5px;
-  border-radius: 6px;
-  background: var(--buy-bg);
-}
-
-.shopping-list h2 { margin: 0 0 6px; font-size: 1rem; }
-.shopping-list ul { margin: 0; padding-left: 1.3em; }
-.shopping-list li { font-weight: 600; }
-
-.banner-warn {
-  margin: 8px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--warn-line);
-  border-left-width: 5px;
-  border-radius: 6px;
-  background: var(--warn-bg);
-}
-
-.banner-warn ul, .unplanned ul { margin: 6px 0 0; padding-left: 20px; }
-
-.unplanned {
-  margin: 16px 0;
-  padding: 12px;
-  border: 2px dashed var(--ink-soft);
-  border-radius: 8px;
-  background: repeating-linear-gradient(45deg, #fff, #fff 10px, #f0efe9 10px, #f0efe9 20px);
-}
-
-/* Sheets stack in one column. The diagram is the primary view at phone width. */
-.sheets { display: grid; grid-template-columns: 1fr; gap: 20px; }
-
-.sheet-block {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
-}
-
-/* View-only rotation. Applied to the wrapper, never to the SVG, so the drawing
-   itself is identical whichever way it is turned on screen. */
-.sheet-view.rotated { transform: rotate(90deg); transform-origin: center; }
-.sheet-view.rotated .sheet-svg { max-height: 40vh; }
-
-/* The CUTS list below never rotates with the picture, so this marker is what
-   stops the two from being read as if they agreed on which edge is which. */
-.view-rotated-note {
-  margin: 6px 0 0;
-  padding: 4px 10px;
-  border: 1px solid var(--warn-line);
-  border-radius: 6px;
-  background: var(--warn-bg);
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.sheet-svg {
-  display: block;
-  max-width: 100%;
-  max-height: 78vh;
-  margin: 0 auto 8px;
-  background: #fff;
-}
-
-.cut-label { fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.09; }
-.cut-dims { fill: #f2f2f2; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.06; }
-.edge-dim { fill: #f2f2f2; paint-order: stroke; stroke: rgba(0, 0, 0, 0.6); stroke-width: 0.06; }
-.scrap-label { fill: #6a6a6a; }
-
-/* Faint by default: the cut lines are a map of the sequence, and only the step
-   being read should shout. app.js adds .is-active on hover or click. */
-.cut-line { opacity: 0.35; }
-.cut-step-no { fill: #333; font-weight: 700; paint-order: stroke; stroke: rgba(255, 255, 255, 0.8); stroke-width: 0.08; }
-
-.cut-line.is-active { stroke: #c0261a !important; opacity: 1; stroke-width: 0.22 !important; }
-.cut-step-no.is-active { fill: #c0261a; }
-.sheet-todo ol.cuts li.is-active { background: #fdecea; box-shadow: inset 3px 0 0 #c0261a; }
-
-/* The per-sheet to-do list, directly under the sheet it belongs to. */
-.sheet-todo { margin-top: 10px; font-size: 0.9rem; }
-.sheet-todo-title { font-size: 0.86rem; font-weight: 600; color: var(--ink-soft); margin: 0 0 6px; }
-.sheet-todo h4 {
-  font-size: 0.76rem;
-  letter-spacing: 0.08em;
-  margin: 10px 0 4px;
-  color: var(--ink-soft);
-}
-
-.sheet-todo ol.cuts { margin: 0; padding-left: 1.6em; }
-.sheet-todo ol.cuts li { padding: 3px 4px; border-radius: 4px; }
-
-.sheet-todo ul.parts { margin: 0; padding: 0; list-style: none; }
-.sheet-todo ul.parts label { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
-.sheet-todo ul.parts input[type="checkbox"] { width: 1.1em; height: 1.1em; flex: none; }
-
-.sheet-todo .leftover { margin: 8px 0 0; color: var(--ink-soft); font-size: 0.84rem; }
-
-/* Containment made visible: a group's sheet sizes sit inside its own box with
-   a left rule, so "these sizes belong to this group" survives phone width. */
-.sheet-group {
-  margin: 10px 0 0;
-  padding: 8px 10px 10px;
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--accent);
-  border-radius: 6px;
-}
-
-.sheet-group > legend {
-  padding: 0 6px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.muted { color: var(--ink-soft); font-size: 0.86rem; }
-
-@media (min-width: 900px) {
-  body { padding: 0 24px 64px; }
-  .sheets { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-}
-
-/* ---------------------------------------------------------------------------
-   Layout: input on the left, the plan on the right.
-
-   The two things a person compares constantly are the sheet diagram and the
-   list of cuts that describes it. Stacked in one column they are never on
-   screen together, so following the plan means scrolling up and down between a
-   picture and the sentence about it. Side by side they are simply both there.
-
-   Phone keeps the single column, because there is no horizontal room to spend.
-   --------------------------------------------------------------------------- */
-
-body { padding: 0 20px 48px; }
-
-header.app-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  justify-content: space-between;
-}
-
-header.app-head h1 { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: 1.35rem; }
-
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.icon-button[aria-expanded="true"] { border-color: var(--ink); background: var(--ink); color: var(--panel); }
-
-.status:empty { display: none; }
 .status { margin: 8px 0 0; color: var(--ink-soft); }
-
-.workspace { display: grid; gap: 24px; align-items: start; padding-top: 16px; }
-
-@media (min-width: 60rem) {
-  .workspace { grid-template-columns: minmax(26rem, 2fr) 3fr; gap: 32px; }
-  /* The plan stays put while you work down the inputs beside it. */
-  .results { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
-}
+.status:empty { display: none; }
 
 /* ---------------------------------------------------------------------------
-   Sections, not accordions. Primary content is never hidden behind a twisty:
-   an accordion is for a menu, not for the data someone came here to enter.
+   Workspace: input on the left, the plan on the right
    --------------------------------------------------------------------------- */
 
-.section { margin: 0 0 28px; }
+.workspace { display: grid; gap: 28px; align-items: start; padding-top: 18px; }
+
+@media (min-width: 62rem) {
+  .workspace { grid-template-columns: minmax(28rem, 5fr) 6fr; gap: 32px; }
+  .results { position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
+}
+
+.section { margin: 0 0 26px; }
 
 .section > h2 {
-  margin: 0 0 10px;
-  font-size: .8rem;
-  letter-spacing: .08em;
+  margin: 0 0 8px;
+  font-size: .72rem;
+  letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
 
 /* ---------------------------------------------------------------------------
-   Tabular entry. Columns line up so a row of data can be scanned at a glance,
-   and adding stock is one more row rather than another card of stacked fields.
+   Tabular entry
    --------------------------------------------------------------------------- */
 
 .grid-table { width: 100%; border-collapse: collapse; }
 
 .grid-table th {
-  padding: 4px 6px;
+  padding: 3px 6px;
   border-bottom: 1px solid var(--line);
-  font-size: .72rem;
+  font-size: .68rem;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ink-soft);
   text-align: left;
-  font-weight: 600;
   white-space: nowrap;
 }
 
+.grid-table th[scope="row"] {
+  width: 1%;
+  padding-right: 10px;
+  border-bottom: 0;
+  font-size: .8rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-soft);
+}
+
+.grid-table td { padding: 2px 6px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+.grid-table tbody tr:last-child td { border-bottom: 0; }
 .grid-table th.num, .grid-table td.num { text-align: right; }
 .grid-table th.mid, .grid-table td.mid { text-align: center; }
 
-.grid-table td { padding: 3px 6px; border-bottom: 1px solid #eceff2; vertical-align: middle; }
-
 .grid-table input[type="text"],
 .grid-table input[type="number"],
-.grid-table select {
-  width: 100%;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--ink);
-  font: inherit;
-}
+.grid-table input[type="date"],
+.grid-table select { width: 100%; min-width: 4rem; }
 
 .grid-table input[type="number"] { text-align: right; }
-.grid-table td.num input { max-width: 7rem; }
-.grid-table td.qty input { max-width: 5rem; }
+.grid-table td.qty input { width: 4.5rem; min-width: 0; }
 
-/* A checkbox is a checkbox. It does not need a tap target the size of a
-   button when it sits in its own column with a header naming it. */
-.grid-table input[type="checkbox"] { width: 18px; height: 18px; margin: 0; }
+/* A checkbox is a checkbox. Its column header already names it. */
+.grid-table input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 
 .row-remove {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   background: none;
   color: var(--ink-soft);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
 }
 
-.row-remove:hover { border-color: var(--line); color: #a4262c; background: var(--panel); }
+.row-remove:hover { border-color: var(--line); color: var(--danger); background: var(--panel); }
 
 .add-row {
   width: 100%;
-  margin-top: 8px;
-  padding: 8px;
+  margin-top: 6px;
+  padding: 6px;
   border: 1px dashed var(--line);
   border-radius: 8px;
   background: none;
   color: var(--ink-soft);
-  font: inherit;
   cursor: pointer;
 }
 
 .add-row:hover { border-color: var(--accent); color: var(--accent); }
 
-/* A material group owns its sheet sizes, so the sheets are drawn inside it. */
-.group { margin: 0 0 18px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-.group-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.group-head input { flex: 1 1 auto; }
-.group-sheets { margin-left: 12px; padding-left: 12px; border-left: 3px solid var(--line); }
-.group-sheets > h3 { margin: 6px 0; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-
-/* ---------------------------------------------------------------------------
-   A sheet: the picture and the cuts that make it, beside each other.
-   --------------------------------------------------------------------------- */
-
-.sheet { margin: 0 0 20px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-.sheet-grid { display: grid; gap: 16px; align-items: start; }
-
-@media (min-width: 48rem) {
-  .sheet-grid { grid-template-columns: minmax(0, 1fr) minmax(13rem, 17rem); }
-}
-
-.sheet-figure { min-width: 0; }
-.sheet-figure svg { width: 100%; height: auto; display: block; }
-
-/* The rotate control belongs beside the picture it turns, and is a quiet
-   control rather than a full width slab. */
-.figure-tools { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
-
-.figure-tools button {
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--ink-soft);
-  font-size: .82rem;
-  cursor: pointer;
-}
-
-.figure-tools button:hover { color: var(--ink); border-color: var(--ink); }
-
-/* ---------------------------------------------------------------------------
-   The cut list: a measurement per line, nothing in front of it.
-   --------------------------------------------------------------------------- */
-
-.cuts { margin: 0; padding: 0; list-style: none; counter-reset: cut; }
-
-.cuts li {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  padding: 4px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.cuts li::before {
-  counter-increment: cut;
-  content: counter(cut) ".";
-  flex: 0 0 1.6rem;
-  text-align: right;
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.cuts .measure { font-weight: 600; font-variant-numeric: tabular-nums; }
-.cuts .from { color: var(--ink-soft); }
-.cuts li:hover { background: #eef3f7; }
-.cuts li[aria-current="true"] { background: var(--buy-bg); outline: 2px solid var(--buy-line); }
-
-.parts-check { margin: 10px 0 0; padding: 0; list-style: none; }
-.parts-check li { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
-.parts-check input[type="checkbox"] { width: 18px; height: 18px; margin: 0; }
-.parts-check .tag { font-weight: 700; font-variant-numeric: tabular-nums; }
-.parts-check .dims { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.parts-check li.done .name, .parts-check li.done .dims { text-decoration: line-through; opacity: .55; }
-
-/* A compact spinner, the shape a native number input uses: the two nudge
-   buttons stack in a narrow gutter so the box itself keeps the width. Two
-   full-size buttons beside the field crushed it to nothing in a table cell. */
-.stepper { display: inline-flex; align-items: stretch; width: 100%; }
+/* A spinner shaped like the browser's own: a narrow gutter beside the box, so
+   nudging a number never costs more room than the number itself. */
+.stepper { display: inline-flex; align-items: stretch; width: 100%; min-width: 5rem; }
 .stepper input { flex: 1 1 auto; min-width: 0; border-radius: 6px 0 0 6px; }
-
-.stepper .steps { display: flex; flex-direction: column; flex: 0 0 16px; }
+.stepper .steps { display: flex; flex-direction: column; flex: 0 0 15px; }
 
 .stepper .step {
   flex: 1 1 50%;
@@ -540,22 +244,162 @@ header.app-head h1 { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font
   border-left: 0;
   background: var(--panel);
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: 7px;
   line-height: 1;
   cursor: pointer;
 }
 
 .stepper .step:first-child { border-radius: 0 6px 0 0; }
 .stepper .step:last-child { border-top: 0; border-radius: 0 0 6px 0; }
-.stepper .step:hover { color: var(--ink); background: #eef3f7; }
+.stepper .step:hover { background: var(--accent-soft); color: var(--ink); }
 
-.group-head select, .group-head input { min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; }
-.section textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; }
-.grid-table th[scope="row"] { border-bottom: 1px solid #eceff2; font-weight: 600; width: 1%; padding-right: 12px; }
+/* A material owns its sheet sizes, so they are drawn inside it behind a rule. */
+.group { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.group-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.group-head > div { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.group-head label { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+.group-head input[type="text"] { flex: 1 1 auto; min-width: 6rem; }
+.group-sheets { margin-left: 6px; padding-left: 12px; border-left: 3px solid var(--line-soft); }
 
-/* A measurement box must never be squeezed to nothing by its own spinner or by
-   a narrow column. The table scrolls sideways before a field disappears. */
-.grid-table input[type="text"], .grid-table input[type="number"], .grid-table select { min-width: 4.5rem; }
-.stepper { min-width: 5.5rem; }
-.section > .grid-table, .group-sheets > .grid-table { display: block; overflow-x: auto; }
-.group-sheets table, .section .grid-table { min-width: 100%; }
+.group-sheets > h3 {
+  margin: 4px 0;
+  font-size: .68rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------------------
+   Results
+   --------------------------------------------------------------------------- */
+
+.notes-banner, .banner-warn, .shopping-list, .banner-buy {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.notes-banner { border-left: 4px solid var(--accent); background: var(--panel); white-space: pre-line; }
+.banner-warn { border: 1px solid var(--warn-line); background: var(--warn-bg); }
+.banner-warn ul, .shopping-list ul { margin: 4px 0 0; padding-left: 20px; }
+.shopping-list { border: 1px solid var(--buy-line); background: var(--buy-bg); }
+.shopping-list h2 { margin-bottom: 4px; font-size: .95rem; }
+.banner-buy { border: 1px solid var(--buy-line); background: var(--buy-bg); }
+
+.material-section { margin: 0 0 22px; }
+.material-section > h2 { margin-bottom: 4px; font-size: 1rem; }
+
+.sheet { margin: 0 0 16px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.sheet > h3 { margin-bottom: 8px; font-size: .9rem; }
+.sheet-grid { display: grid; gap: 14px; align-items: start; }
+
+@media (min-width: 44rem) {
+  .sheet-grid { grid-template-columns: minmax(0, 1fr) minmax(11rem, 15rem); }
+}
+
+.sheet-figure { min-width: 0; }
+.sheet-view { display: block; }
+.sheet-view svg, .sheet-svg { display: block; width: 100%; height: auto; }
+.sheet-view.rotated { transform: rotate(90deg); transform-origin: center; }
+.view-rotated-note { margin: 6px 0 0; font-size: .78rem; color: var(--ink-soft); }
+
+/* Controls that act on the picture sit under it, quiet and small. */
+.figure-tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+
+.figure-tools button {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.figure-tools button:hover { color: var(--ink); border-color: var(--ink); }
+
+.sheet-todo-title { margin: 0 0 4px; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+
+.cuts { margin: 0 0 10px; padding: 0; list-style: none; counter-reset: cut; }
+
+.cuts li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 3px 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.cuts li::before {
+  counter-increment: cut;
+  content: counter(cut) ".";
+  flex: 0 0 1.4rem;
+  text-align: right;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.cuts .measure { font-weight: 700; font-variant-numeric: tabular-nums; }
+.cuts .from, .cuts .frees { color: var(--ink-soft); font-size: .85em; }
+.cuts li:hover { background: var(--accent-soft); }
+.cuts li.is-active { background: var(--buy-bg); box-shadow: inset 0 0 0 2px var(--buy-line); }
+
+.parts { margin: 0; padding: 0; list-style: none; font-size: .88rem; }
+.parts li { padding: 2px 0; }
+.parts label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.parts input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; margin: 0; }
+
+.leftover { margin: 8px 0 0; font-size: .82rem; color: var(--ink-soft); }
+.part-block { font-size: .88rem; }
+
+/* Diagram internals.
+ *
+ * NEVER set font-size or stroke-width here in pixels. The viewBox is the
+ * sheet's real size in inches, so one user unit is one inch: a `font-size:
+ * 10px` rule beats the renderer's own presentation attribute and draws a label
+ * ten inches tall, which is exactly what it did. The renderer sizes its own
+ * text and strokes in sheet units, scaled to the sheet. Color and weight only. */
+.cut-line { fill: none; stroke: #8a949d; stroke-dasharray: 5 4; }
+.cut-step-no { fill: var(--ink-soft); font-weight: 700; }
+.cut-line.is-active { stroke: #c0392b; stroke-dasharray: none; }
+.cut-step-no.is-active { fill: #c0392b; }
+.cut-label { fill: #fff; font-weight: 700; }
+.cut-dims, .edge-dim, .scrap-label { fill: var(--ink-soft); }
+.sheet-edge { fill: none; stroke: var(--ink); }
+.sheet-usable { fill: none; stroke: var(--line); }
+
+/* ---------------------------------------------------------------------------
+   Dialogs
+   --------------------------------------------------------------------------- */
+
+dialog { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); }
+dialog::backdrop { background: rgba(0, 0, 0, .35); }
+dialog h2 { margin-bottom: 10px; font-size: 1.05rem; }
+dialog label { display: block; margin: 10px 0 4px; font-size: .8rem; color: var(--ink-soft); }
+dialog select { width: 100%; min-width: 16rem; }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+
+dialog .row button {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+dialog .row button:hover { border-color: var(--ink); }
+
+/* A cut line reads as one sentence: the measurement, the edge it is taken
+   from, and what it frees. Letting the three wrap into columns of their own
+   turned four steps into a ragged grid. */
+.cuts li { flex-wrap: wrap; }
+.cuts .measure { white-space: nowrap; }
+.cuts .from { white-space: nowrap; }
+.cuts .frees { flex: 1 1 100%; padding-left: 1.4rem; }
+
+/* A part's name is the widest thing in its row and the one you scan for, so it
+   gets the room and the numbers stay narrow. */
+.grid-table td:first-child input[type="text"] { min-width: 8rem; }
+.grid-table td.num { width: 6rem; }
+.grid-table td.mid { width: 2rem; }
