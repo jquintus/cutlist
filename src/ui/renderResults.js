@@ -35,16 +35,26 @@ function buyBanner(materialPlan) {
  * not 48 in, and interpolating raw inches here is exactly the bug the metric
  * test catches. Not marked no-print -- this is the list you take to the store.
  */
-function shoppingListSection(plan, system) {
+function shoppingListSection(plan, system, ticked = new Set(), standalone = false) {
   if (plan.shoppingList.length === 0) return '';
-  const items = plan.shoppingList.map((entry) => {
+  const items = plan.shoppingList.map((entry, index) => {
     const thickness = entry.thicknessLabel ? ` (${escapeHtml(entry.thicknessLabel)})` : '';
     const sheetWord = entry.qty === 1 ? 'sheet' : 'sheets';
-    return `<li>${escapeHtml(entry.qty)} ${sheetWord} of ${escapeHtml(entry.name)}${thickness}`
+    const text = `${escapeHtml(entry.qty)} ${sheetWord} of ${escapeHtml(entry.name)}${thickness}`
       + `, ${escapeHtml(formatLength(entry.widthIn, system))}`
-      + ` x ${escapeHtml(formatLength(entry.lengthIn, system))}</li>`;
+      + ` x ${escapeHtml(formatLength(entry.lengthIn, system))}`;
+    // Keyed to the material rather than to its place in the list, so a tick
+    // made in the aisle survives an edit to the project on the way there.
+    const id = `buy:${entry.materialId ?? index}`;
+    const done = ticked.has(id);
+    return `<li${done ? ' class="done"' : ''}><label>`
+      + `<input type="checkbox" data-tick="${escapeHtml(id)}"${done ? ' checked' : ''} /> ${text}</label></li>`;
   }).join('');
-  return `<section class="shopping-list"><h2>Shopping list</h2><ul>${items}</ul></section>`;
+
+  // In a store you want the list and nothing else, so it opens on its own the
+  // same way a sheet does.
+  const openLink = standalone ? '' : `<a class="open-alone no-print" data-view-link="shopping" href="#">Open on its own</a>`;
+  return `<section class="shopping-list"><h2>Shopping list ${openLink}</h2><ul class="buy-list">${items}</ul></section>`;
 }
 
 /** One sheet: its picture, the cuts that make it, and the parts it yields. */
@@ -77,7 +87,7 @@ function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
           <button type="button" data-action="rotate-sheet" data-material="${materialPlan.materialIndex}" data-sheet-index="${index}" title="Lay the sheet the other way and work out the cuts again.">&#8644; Repack ${escapeHtml(sheetPlan.lengthIn)} x ${escapeHtml(sheetPlan.widthIn)}</button>
         </div>
       </div>
-      <div class="sheet-steps">${sheetCutListHtml(sheetPlan, materialPlan, system, index)}</div>
+      <div class="sheet-steps">${sheetCutListHtml(sheetPlan, materialPlan, system, index, view.ticked ?? new Set())}</div>
     </div>
   </article>`;
 }
@@ -111,20 +121,27 @@ function materialSection(plan, materialPlan, view) {
 export function renderResults(plan, view = {}) {
   const system = plan.displaySystem ?? 'imperial';
 
+  const backLink = `<p class="focus-back no-print"><a href="${escapeHtml(view.baseHash || '#')}">&larr; Back to the plan</a></p>`;
+
+  // The shopping list on its own, for standing in an aisle ticking things off.
+  if (view.focusView === 'shopping') {
+    return backLink + shoppingListSection(plan, system, view.ticked ?? new Set(), true);
+  }
+
   // One sheet on its own, which is the view for a phone at the saw: the
   // diagram, its cuts and its parts, and nothing else competing for the screen.
   if (view.focusSheet) {
     for (const materialPlan of plan.materials) {
       for (const [index, sheetPlan] of materialPlan.sheets.entries()) {
         if (sheetKey(materialPlan, sheetPlan, index) !== view.focusSheet) continue;
-        return `<p class="focus-back no-print"><a href="${escapeHtml(location.hash.split('&')[0] || '#')}">&larr; All sheets</a></p>`
+        return `<p class="focus-back no-print"><a href="${escapeHtml(view.baseHash || '#')}">&larr; All sheets</a></p>`
           + `<section class="material-section"><h2>${escapeHtml(materialPlan.name)}`
           + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>`
           + sheetArticle(plan, materialPlan, sheetPlan, index, view, system)
           + '</section>';
       }
     }
-    return `<p class="focus-back no-print"><a href="${escapeHtml(location.hash.split('&')[0] || '#')}">&larr; All sheets</a></p>`
+    return `<p class="focus-back no-print"><a href="${escapeHtml(view.baseHash || '#')}">&larr; All sheets</a></p>`
       + '<p class="muted">That sheet is not in this project any more.</p>';
   }
 
@@ -138,6 +155,6 @@ export function renderResults(plan, view = {}) {
     + ` edge trim ${escapeHtml(formatLength(plan.params.edgeTrimIn, system))}.</p>`;
   const materials = plan.materials.map((materialPlan) => materialSection(plan, materialPlan, view)).join('');
 
-  return notesSection(plan) + warningsSection(plan) + shoppingListSection(plan, system)
+  return notesSection(plan) + warningsSection(plan) + shoppingListSection(plan, system, view.ticked ?? new Set())
     + settings + materials;
 }

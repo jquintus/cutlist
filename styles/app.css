@@ -479,3 +479,24 @@ body.focus-sheet .results { position: static; max-height: none; overflow: visibl
 .grid-table th.sortable.num button { text-align: right; }
 .grid-table th.sortable button:hover { color: var(--ink); background: var(--accent-soft); }
 .grid-table th.sorted button { color: var(--accent); }
+
+/* A shopping list you can work down in a store: big enough to hit with a thumb,
+   and a ticked line reads as done at a glance. */
+.buy-list { margin: 6px 0 0; padding: 0; list-style: none; }
+.buy-list li { padding: 4px 0; }
+.buy-list label { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.buy-list input[type="checkbox"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; }
+.buy-list li.done label { text-decoration: line-through; opacity: .55; }
+.parts li.done label { text-decoration: line-through; opacity: .55; }
+
+.open-alone {
+  margin-left: 8px;
+  font-size: .72rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+}
+
+body.focus-sheet .shopping-list { border-width: 0; background: none; padding: 0; }
+body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }

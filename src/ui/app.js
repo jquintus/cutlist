@@ -135,6 +135,10 @@ function render() {
   const plan = planProject(project);
 
   el.forms.innerHTML = renderForms(project, uiState, partsSort);
+  // The base link travels in with the rest of the presentation state: the
+  // results renderer stays free of the DOM so the whole surface can be
+  // exercised under node --test, which is what caught this.
+  view.baseHash = location.hash.split('&')[0] || '#';
   el.results.innerHTML = renderResults(plan, view);
   // The highlighted step belonged to markup that no longer exists.
   activeStep = null;
@@ -180,7 +184,9 @@ function update(mutate) {
 // how a sheet is lying on the horses changes nothing about the cuts, so it
 // must not touch the plan, the share link or the print output.
 
-const view = { rotated: {} };
+// Presentation state: how a sheet is shown, which view is open on its own, and
+// which boxes are ticked. None of it changes a measurement or a cut.
+const view = { rotated: {}, focusSheet: null, focusView: null, ticked: new Set() };
 
 /**
  * Which mode each preset control is in, keyed by the entity's own stable id.
@@ -242,7 +248,22 @@ function setActiveStep(sheet, seq) {
   activeStep = { sheet, seq };
 }
 
+el.results.addEventListener('change', (event) => {
+  const box = event.target.closest?.('[data-tick]');
+  if (!box) return;
+  const id = box.dataset.tick;
+  if (box.checked) view.ticked.add(id);
+  else view.ticked.delete(id);
+  box.closest('li')?.classList.toggle('done', box.checked);
+  // Straight to the fragment, not through render(): re-rendering here would
+  // drop the box the pointer is still on.
+  debouncedWriteHash(store.current);
+});
+
 el.results.addEventListener('click', (event) => {
+  const viewLink = event.target.closest?.('[data-view-link]');
+  if (viewLink) return; // A real link. Let the browser navigate.
+
   const rotate = event.target.closest?.('[data-action="rotate-view"]');
   if (rotate) {
     const key = rotate.dataset.sheet;
@@ -488,10 +509,19 @@ function refreshSheetLinks() {
   for (const link of document.querySelectorAll('[data-sheet-link]')) {
     link.setAttribute('href', `${base}&sheet=${encodeURIComponent(link.dataset.sheetLink)}`);
   }
+  for (const link of document.querySelectorAll('[data-view-link]')) {
+    link.setAttribute('href', `${base}&view=${encodeURIComponent(link.dataset.viewLink)}`);
+  }
 }
 
 function focusSuffix() {
-  return view.focusSheet ? `&sheet=${encodeURIComponent(view.focusSheet)}` : '';
+  const parts = [];
+  if (view.focusSheet) parts.push(`&sheet=${encodeURIComponent(view.focusSheet)}`);
+  if (view.focusView) parts.push(`&view=${encodeURIComponent(view.focusView)}`);
+  // Ticks ride in the fragment too. A checkbox that forgets itself on refresh
+  // is worse than no checkbox: it looks like progress and keeps none.
+  if (view.ticked?.size) parts.push(`&done=${[...view.ticked].map(encodeURIComponent).join(',')}`);
+  return parts.join('');
 }
 
 function writeHash(project) {
@@ -719,6 +749,17 @@ function focusFromHash() {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+function viewFromHash() {
+  const match = /[&]view=([^&]*)/.exec(location.hash);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function ticksFromHash() {
+  const match = /[&]done=([^&]*)/.exec(location.hash);
+  if (!match || match[1] === '') return new Set();
+  return new Set(match[1].split(',').map(decodeURIComponent));
+}
+
 /**
  * Follow a sheet link, and the Back button out of one.
  *
@@ -730,15 +771,19 @@ function focusFromHash() {
  */
 window.addEventListener('hashchange', () => {
   const next = focusFromHash();
-  if (next === view.focusSheet) return;
+  const nextView = viewFromHash();
+  if (next === view.focusSheet && nextView === view.focusView) return;
   view.focusSheet = next;
-  document.body.classList.toggle('focus-sheet', next !== null);
+  view.focusView = nextView;
+  document.body.classList.toggle('focus-sheet', next !== null || nextView !== null);
   render();
   refreshSheetLinks();
   window.scrollTo(0, 0);
 });
 
 view.focusSheet = focusFromHash();
+view.focusView = viewFromHash();
+view.ticked = ticksFromHash();
 
 const restored = decodeHash(location.hash);
 if (restored.ok) {
@@ -746,7 +791,7 @@ if (restored.ok) {
 } else if (location.hash.startsWith('#pako:')) {
   setStatus(restored.error, 'error');
 }
-document.body.classList.toggle('focus-sheet', view.focusSheet !== null);
+document.body.classList.toggle('focus-sheet', view.focusSheet !== null || view.focusView !== null);
 render();
 refreshSheetLinks();
 populatePicker();

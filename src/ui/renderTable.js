@@ -131,9 +131,14 @@ function cutItemHtml(row) {
     + ` <span class="from">from ${escapeHtml(row.referenceEdge)}</span>${frees}</li>`;
 }
 
-function partItemHtml(row) {
+function partItemHtml(row, ticked) {
   const turned = row.rotated ? ' (turned)' : '';
-  return '<li><label><input type="checkbox" />'
+  // The tick is keyed to the part, not to its position, so it survives a
+  // reorder and a sort, and it goes into the fragment so a refresh at the saw
+  // does not wipe what has already been cut.
+  const id = `${row.sheetKey}:${row.label}`;
+  const done = ticked.has(id);
+  return `<li${done ? ' class="done"' : ''}><label><input type="checkbox" data-tick="${escapeHtml(id)}"${done ? ' checked' : ''} />`
     + ` <strong>${escapeHtml(row.label)}</strong> - ${escapeHtml(row.name)}`
     + ` - ${escapeHtml(row.sizeLabel)}${turned}</label></li>`;
 }
@@ -151,7 +156,7 @@ function leftoverHtml(rows) {
  * The single implementation behind both entry points below, so the whole-plan
  * list and a sheet rendered under its own diagram cannot drift apart.
  */
-function sectionHtml(rows) {
+function sectionHtml(rows, ticked = new Set()) {
   const header = rows.find((row) => row.kind === 'sheet');
   const cuts = rows.filter((row) => row.kind === 'cut');
   const parts = rows.filter((row) => row.kind === 'part');
@@ -166,14 +171,14 @@ function sectionHtml(rows) {
   <h4>CUTS</h4>
   <ol class="cuts">${cuts.map(cutItemHtml).join('')}</ol>
   <h4>PARTS OFF THIS SHEET</h4>
-  <ul class="parts">${parts.map(partItemHtml).join('')}</ul>
+  <ul class="parts">${parts.map((row) => partItemHtml(row, ticked)).join('')}</ul>
   ${leftoverHtml(leftovers)}
 </section>`;
 }
 
 /** One sheet's to-do list, for rendering directly under that sheet's diagram. */
-export function sheetCutListHtml(sheetPlan, materialPlan, system, index) {
-  return sectionHtml(sheetRows(sheetPlan, materialPlan, system, index));
+export function sheetCutListHtml(sheetPlan, materialPlan, system, index, ticked = new Set()) {
+  return sectionHtml(sheetRows(sheetPlan, materialPlan, system, index), ticked);
 }
 
 /**
@@ -182,11 +187,11 @@ export function sheetCutListHtml(sheetPlan, materialPlan, system, index) {
  * Takes rows rather than the plan so that a caller that already has rows (the
  * seed and parity tests) does not have to re-derive them.
  */
-export function cutListHtml(rows) {
+export function cutListHtml(rows, ticked = new Set()) {
   const sections = [];
   for (const row of rows) {
     if (row.kind === 'sheet') sections.push([]);
     if (sections.length > 0) sections[sections.length - 1].push(row);
   }
-  return sections.map(sectionHtml).join('\n');
+  return sections.map((section) => sectionHtml(section, ticked)).join('\n');
 }
