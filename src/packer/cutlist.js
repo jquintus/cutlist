@@ -3,15 +3,19 @@
 // The sequence is a pre-order walk of that sheet's free-area tree: a parent
 // piece is always cut before either of the pieces it produces, which is the
 // order a person can actually work in at the saw. This traversal order is the
-// single source of truth for both the diagram and the printed table.
+// single source of truth for both the diagram and the printed list.
 //
-// Every piece the sequence ever mentions carries an identifier, because size
-// alone does not identify a piece. A layout can easily leave two 3 1/2 by 30
-// pieces on the bench at once, one of them a finished part, and a step that
-// says only "cut the 3 1/2 by 30 piece" is an invitation to cut up the
-// finished one. An offcut is named for the step that made it, and a piece that
-// is already a finished part is named by its cut-list label, so a step always
-// points at exactly one piece and says where it came from.
+// Every piece carries an internal identifier because size alone does not
+// identify a piece: a layout can easily leave two 3 1/2 by 30 pieces on the
+// bench at once, one of them a finished part. That identifier stays in the
+// data, where the bench-tracking and uniqueness invariants are checked on it,
+// and is never shown to anyone. What a person reads is the piece's `address`:
+// a finished part by its cut-list label, and any other piece by the step that
+// produced it and which side of that cut it came off. A cut makes exactly two
+// pieces, so "the left piece from step 3" points at exactly one of them
+// without asking anybody to measure anything twice. Left/right and top/bottom
+// mean what they mean on the drawn sheet, which is the sheet a person lines up
+// in front of them; see REFERENCE_EDGE below.
 
 import { EPS } from '../geometry.js';
 import { formatLength } from '../units.js';
@@ -29,49 +33,70 @@ function kindFor(axis, widthIn, lengthIn) {
   return cutRunsAlongY === longEdgeRunsAlongY ? 'rip' : 'crosscut';
 }
 
-const REFERENCE_EDGE = { v: 'left', h: 'bottom' };
+// Which edge a measurement is hooked on, in the orientation the diagram draws.
+//
+// One convention covers both the words and the picture. The sheet is drawn
+// with x = 0 at the left and y = 0 at the TOP, so the origin end of a piece is
+// its left edge for a 'v' cut and its top edge for an 'h' cut. Calling the
+// 'h' origin "bottom" mirrored the list against the drawing: the step said to
+// measure up from the bottom while the line was drawn down from the top, and
+// the piece a step called "top" was the one drawn at the bottom. Lining the
+// printed diagram up with the real sheet and following the written
+// measurement then cut the panel at the wrong end.
+const REFERENCE_EDGE = { v: 'left', h: 'top' };
 
-function sizeOf(piece, system) {
-  return `${formatLength(piece.w, system)} x ${formatLength(piece.h, system)}`;
+// Which side of the cut each child comes off. cutNode always builds `first` as
+// the near side -- the smaller x or the smaller y -- which is the left or the
+// top one as the sheet is drawn.
+const SIDES = { v: ['left', 'right'], h: ['top', 'bottom'] };
+
+/** How a step names the piece it is about to cut, with no internal id in it. */
+function addressOf(piece) {
+  if (piece.role === 'sheet') return piece.origin;
+  if (piece.role === 'part') return piece.id;
+  return `the ${piece.side} piece from step ${piece.fromSeq}`;
 }
 
-/** How a piece is named in a step: the identifier first, so it reads as an address. */
-function nameOf(piece, system) {
-  const size = sizeOf(piece, system);
-  if (piece.role === 'part') return `${piece.id} (${piece.name}, ${size})`;
-  if (piece.role === 'offcut') return `${piece.id} (offcut, ${size})`;
-  return `${piece.id} (${size})`;
-}
-
-/** Where the piece being cut came from, so it can be found on the bench. */
-function originOf(piece) {
-  return piece.role === 'sheet' ? piece.origin : `from step ${piece.fromSeq}`;
-}
-
-function noteFor(step, system) {
+/** The one saw action: one verb, one piece, one measurement, one edge. */
+function instructionFor(step, system) {
   const verb = step.kind === 'rip' ? 'Rip' : 'Crosscut';
-  const [first, second] = step.pieceAfter;
-  return `${verb} ${nameOf(step.pieceBefore, system)}, ${originOf(step.pieceBefore)},`
-    + ` at ${formatLength(step.atIn, system)} from the ${step.referenceEdge} edge.`
-    + ` Makes ${nameOf(first, system)} and ${nameOf(second, system)}.`;
+  return `${verb} ${addressOf(step.pieceBefore)}`
+    + ` at ${formatLength(step.atIn, system)} from the ${step.referenceEdge} edge.`;
+}
+
+/**
+ * What this cut finishes, if anything.
+ *
+ * Kept apart from the instruction so a reader is never handed two things to do
+ * in one sentence, and so nothing downstream has to split prose to tell the
+ * action from its result. A cut that only yields offcuts says nothing here;
+ * the leftovers are summarized once per sheet instead.
+ */
+function freesFor(step) {
+  const parts = step.pieceAfter.filter((piece) => piece.role === 'part');
+  if (parts.length === 0) return '';
+  const named = parts.map((piece) => `${piece.id} ${piece.name}`.trim());
+  return `Frees ${named.join(' and ')}.`;
 }
 
 /**
  * Ordered rip and crosscut steps for a sheet plan, numbered from 1.
  *
- * `atIn` is measured from the piece's own reference edge, which the note
- * names in words so nobody has to guess which end of the piece to hook the
- * tape on. `pieceBefore` and each entry in `pieceAfter` carry an `id` that is
- * unique within the sheet, plus the `fromSeq` of the step that produced them.
+ * `atIn` is measured from the piece's own reference edge -- its left edge or
+ * its top edge, as the sheet is drawn -- which the note names in words so
+ * nobody has to guess which end of the piece to hook the tape on. `lineIn` is
+ * the same cut expressed in absolute sheet inches, which is what the diagram
+ * draws; `fromIn` and `toIn` span the cut along the other axis. `pieceBefore` and each entry in `pieceAfter` carry an internal `id`
+ * that is unique within the sheet, the `fromSeq` of the step that produced
+ * them, and the human `address` that is safe to show.
  */
 export function cutStepsFor(sheetPlan, system = 'imperial') {
   const steps = [];
   const { widthIn, lengthIn } = sheetPlan;
   let nextPieceNumber = 0;
 
-  // Offcut numbers are handed out as pieces come into existence, which is the
-  // step order, so an identifier always appears in an earlier step's "Makes"
-  // clause before the step that cuts it up.
+  // Internal identifiers are handed out as pieces come into existence, which
+  // is the step order.
   //
   // Lowercase "p", never uppercase: a part label is always an uppercase
   // letter run followed by a copy number (model.js's letterFor/expandParts),
@@ -85,39 +110,48 @@ export function cutStepsFor(sheetPlan, system = 'imperial') {
     return `p${nextPieceNumber}`;
   };
 
-  const identify = (node, fromSeq) => {
-    if (node.part !== null) {
-      return { id: node.part.label, name: node.part.name, role: 'part', w: node.w, h: node.h, fromSeq };
-    }
-    return {
-      id: nextPieceId(),
-      name: '',
-      role: node.cut === null ? 'offcut' : 'piece',
-      w: node.w,
-      h: node.h,
-      fromSeq,
-    };
+  const identify = (node, fromSeq, side) => {
+    const piece = node.part !== null
+      ? { id: node.part.label, name: node.part.name, role: 'part', w: node.w, h: node.h, fromSeq, side }
+      : {
+        id: nextPieceId(),
+        name: '',
+        role: node.cut === null ? 'offcut' : 'piece',
+        w: node.w,
+        h: node.h,
+        fromSeq,
+        side,
+      };
+    piece.address = addressOf(piece);
+    return piece;
   };
 
   const walk = (node, piece) => {
     if (node.cut === null) return;
     const { axis, at, first, second } = node.cut;
     const seq = steps.length + 1;
-    const firstPiece = identify(first, seq);
-    const secondPiece = identify(second, seq);
+    const [nearSide, farSide] = SIDES[axis];
+    const firstPiece = identify(first, seq, nearSide);
+    const secondPiece = identify(second, seq, farSide);
 
     const step = {
       seq,
       kind: kindFor(axis, widthIn, lengthIn),
+      axis,
       atIn: at,
+      lineIn: axis === 'v' ? node.x + at : node.y + at,
       fromIn: axis === 'v' ? node.y : node.x,
       toIn: axis === 'v' ? node.y + node.h : node.x + node.w,
       referenceEdge: REFERENCE_EDGE[axis],
       pieceBefore: piece,
       pieceAfter: [firstPiece, secondPiece],
+      instruction: '',
+      frees: '',
       note: '',
     };
-    step.note = noteFor(step, system);
+    step.instruction = instructionFor(step, system);
+    step.frees = freesFor(step);
+    step.note = step.frees === '' ? step.instruction : `${step.instruction} ${step.frees}`;
     steps.push(step);
 
     walk(first, firstPiece);
@@ -137,7 +171,9 @@ export function cutStepsFor(sheetPlan, system = 'imperial') {
     w: tree.w,
     h: tree.h,
     fromSeq: null,
+    side: null,
   };
+  rootPiece.address = addressOf(rootPiece);
   walk(tree, rootPiece);
   return steps;
 }

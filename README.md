@@ -23,25 +23,43 @@ one end. **Check every measurement against your own stock before you cut.**
 
 ## Opening a project
 
-Open the site and pick a project from the list at the top, or paste a share
-link. A share link carries the whole project in the URL itself, so it opens
-with no network at all once the page has loaded once.
+Open the site and you get an empty project. Everything else is behind the
+**Menu** in the header. A share link carries the whole project in the URL
+itself, so it opens with no network at all once the page has loaded once.
 
-Three buttons cover the rest:
+Projects:
+
+- **New** starts an empty project: no material group, no sheet, no part.
+- **Open...** lists the projects committed to this repository and the projects
+  saved in this browser, in two groups.
+- **Save** writes back to the project you opened or last saved as. A project
+  that has never been saved falls through to Save As.
+- **Save As...** asks for a name and saves under it, in this browser only.
+
+The rest of the menu:
 
 - **Copy share link** puts the current project in your clipboard as a URL.
-- **Print cut list** gives you a black and white page that needs no color ink.
-  The printed table and the on-screen diagram always describe the same layout.
 - **Export JSON** saves the project as a file you can keep or mail to someone.
+- **Import JSON** reads such a file back.
+- **Save to GitHub** is a plain link to a prefilled commit page; see below.
+
+There is no Print button. Use your browser's own print command (Ctrl/Cmd+P):
+the print stylesheet gives you a black and white page that needs no color ink,
+with each sheet's diagram, its numbered cut lines, its CUTS list and its parts
+checklist together. The printed page and the on-screen diagram always describe
+the same layout.
 
 ## Adding a project
 
 Two ways, and neither one involves editing `projects/index.json`.
 
-1. **Direct upload.** Build the project in the app, then press **Direct
-   upload**. That opens GitHub's new-file page with the filename and contents
-   already filled in, and you press Commit. For a project too large to fit in a
-   URL it downloads the file instead, and you add it to `projects/` yourself.
+1. **Save to GitHub.** Build the project in the app, then follow **Save to
+   GitHub** in the menu. It is an ordinary link: it points at GitHub's new-file
+   page with the filename and contents already filled in, and you press Commit.
+   Open it in a new tab, copy it, or check where it goes before you click, the
+   way you would any link. For a project too large to fit in a URL the link
+   becomes a download of the file instead, and you add it to `projects/`
+   yourself.
 
 2. **Drop a file in.** Put a `.json` file in `projects/` and commit it.
 

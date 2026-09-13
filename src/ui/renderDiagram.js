@@ -7,6 +7,7 @@
 import { coordStr } from '../geometry.js';
 import { formatLength } from '../units.js';
 import { escapeHtml } from './escape.js';
+import { sheetKey } from './renderTable.js';
 
 // Distinct enough to tell apart under shop lighting, and all dark enough to
 // carry white label text.
@@ -25,6 +26,10 @@ const LINE_GAP = 1.05;     // baseline to baseline, as a fraction of the font si
 const DIM_RATIO = 0.7;     // the dimension line, relative to the label line
 const MIN_LABEL_IN = 0.5;  // below this, dropping content beats shrinking further
 const SIZE_SEARCH_STEPS = 24;
+const MIN_SCRAP_IN = 2;    // a leftover narrower than this is not worth naming on the picture
+const EDGE_GUTTER = 1.3;   // clear space kept at an edge that carries a dimension, in font sizes
+const EDGE_ROOM = 4;       // a dimension needs this many font sizes across the part it sits on
+const MARK_PAD = 0.15;     // clear space kept around a cut step number, in font sizes
 
 /**
  * One color per distinct part on this sheet, assigned in placement order.
@@ -140,10 +145,10 @@ export function labelLayout({ label, name, dims, w, h, maxSize }) {
   };
 }
 
-/** The text block for one placement, centered on the rectangle. */
-function labelSvg(placement, layout) {
-  const cx = placement.x + placement.w / 2;
-  const cy = placement.y + placement.h / 2;
+/** The text block for one placement, centered in the box left for it. */
+function labelSvg(box, layout) {
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
   const rows = layout.lines.length + (layout.dims === '' ? 0 : DIM_RATIO);
   const step = layout.size * LINE_GAP;
   // Baselines run downward from the top of a block centered on cy, offset by
@@ -166,16 +171,194 @@ function labelSvg(placement, layout) {
   return elements.join('\n');
 }
 
+/** Do two rectangles share any area? */
+function overlaps(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
 /**
- * One sheet as a to-scale SVG.
+ * Where every cut step number on this sheet is drawn, with the box its text
+ * occupies.
+ *
+ * Worked out before any part label is laid out, because the two passes write
+ * into the same picture and neither can see the other: a step number stamped
+ * over a part name leaves both unreadable, and on a narrow strip that is
+ * exactly where a number lands. The number keeps its place -- it is what a
+ * person is looking for at the saw -- and the name is moved aside instead.
+ *
+ * A number is nudged clear of its line, and sits at the end of the line the
+ * measurement is taken from rather than at its midpoint: an edge dimension is
+ * centered on its own edge, and a cut line very often runs exactly along one.
+ */
+function stepNumberMarks(sheetPlan, scale) {
+  const size = Math.max(0.6, scale / 28);
+  return sheetPlan.cuts.map((step) => {
+    const acrossX = step.axis === 'v';
+    const x = acrossX ? step.lineIn + size * 0.7 : step.fromIn + size;
+    const y = acrossX ? step.fromIn + size : step.lineIn - size * 0.5;
+    const text = String(step.seq);
+    const width = textWidth(text, size) + 2 * size * MARK_PAD;
+    return {
+      step,
+      text,
+      x,
+      y,
+      size,
+      // Baseline sits at y, so the glyphs run from one cap height above it to a
+      // descender below; the pad is what keeps a name from touching the number
+      // rather than merely missing it.
+      box: {
+        x: x - width / 2,
+        y: y - size * (0.8 + MARK_PAD),
+        w: width,
+        h: size * (1 + 2 * MARK_PAD),
+      },
+    };
+  });
+}
+
+/** How much room a box has for text, in square inches. */
+function boxArea(box) {
+  return Math.max(0, box.w) * Math.max(0, box.h);
+}
+
+/**
+ * The part of `box` that no cut step number is written into.
+ *
+ * Each colliding number is escaped by pulling in the one side that leaves the
+ * most room behind, so the name ends up beside the number instead of under it
+ * and keeps as much of its rectangle as the number allows. Biggest remainder
+ * rather than smallest trim is what saves the name on a narrow strip: there,
+ * clearing the number sideways leaves a column too narrow for any word, while
+ * clearing it downward leaves most of the part.
+ */
+function clearOfMarks(box, marks) {
+  let clear = box;
+  for (const mark of marks) {
+    if (!overlaps(clear, mark.box)) continue;
+    const below = mark.box.y + mark.box.h;
+    const right = mark.box.x + mark.box.w;
+    clear = [
+      { x: clear.x, y: below, w: clear.w, h: clear.y + clear.h - below },
+      { x: clear.x, y: clear.y, w: clear.w, h: mark.box.y - clear.y },
+      { x: right, y: clear.y, w: clear.x + clear.w - right, h: clear.h },
+      { x: clear.x, y: clear.y, w: mark.box.x - clear.x, h: clear.h },
+    ].reduce((best, option) => (boxArea(option) > boxArea(best) ? option : best));
+    clear = { ...clear, w: Math.max(0, clear.w), h: Math.max(0, clear.h) };
+  }
+  return clear;
+}
+
+/**
+ * The numbered cut lines, drawn over the parts.
+ *
+ * Each line spans the full extent of the piece that step cuts, which is what
+ * makes it a guillotine cut you can see: it runs edge to edge of that piece and
+ * nothing stops halfway. Faint by default; app.js bolds the active one on
+ * screen and print.css forces them all to black.
+ */
+function cutLinesSvg(marks, key, scale) {
+  if (marks.length === 0) return '';
+  const width = Math.max(0.03, scale / 500);
+  const dash = `${coordStr(scale / 60)} ${coordStr(scale / 90)}`;
+
+  const parts = marks.map(({ step, x, y, size, text }) => {
+    const acrossX = step.axis === 'v';
+    const x1 = acrossX ? step.lineIn : step.fromIn;
+    const x2 = acrossX ? step.lineIn : step.toIn;
+    const y1 = acrossX ? step.fromIn : step.lineIn;
+    const y2 = acrossX ? step.toIn : step.lineIn;
+    return `    <line class="cut-line" data-step="${step.seq}" data-sheet="${escapeHtml(key)}"`
+      + ` x1="${coordStr(x1)}" y1="${coordStr(y1)}" x2="${coordStr(x2)}" y2="${coordStr(y2)}"`
+      + ` stroke="#111" stroke-width="${coordStr(width)}" stroke-dasharray="${dash}" />\n`
+      + `    <text class="cut-step-no" data-step="${step.seq}" data-sheet="${escapeHtml(key)}"`
+      + ` x="${coordStr(x)}" y="${coordStr(y)}" font-size="${coordStr(size)}"`
+      + ` text-anchor="middle">${escapeHtml(text)}</text>`;
+  }).join('\n');
+
+  return `  <g class="cut-lines">\n${parts}\n  </g>\n`;
+}
+
+/**
+ * One label per leftover, naming its size where it actually lies.
+ *
+ * Read straight off sheetPlan.offcuts, the same array the per-sheet leftover
+ * summary reads, so the picture and the words cannot disagree.
+ */
+function scrapLabelsSvg(sheetPlan, system, maxLabelSize) {
+  const size = maxLabelSize * DIM_RATIO;
+  const labels = (sheetPlan.offcuts ?? [])
+    .filter((offcut) => Math.min(offcut.w, offcut.h) >= MIN_SCRAP_IN)
+    .map((offcut) => {
+      const text = `${formatLength(offcut.w, system)} x ${formatLength(offcut.h, system)}`;
+      if (textWidth(text, size) > offcut.w * FILL) return '';
+      if (size * LINE_GAP > offcut.h * FILL) return '';
+      return `    <text class="scrap-label" x="${coordStr(offcut.x + offcut.w / 2)}"`
+        + ` y="${coordStr(offcut.y + offcut.h / 2)}" font-size="${coordStr(size)}"`
+        + ` text-anchor="middle">${escapeHtml(text)}</text>`;
+    })
+    .filter((element) => element !== '');
+
+  if (labels.length === 0) return '';
+  return `  <g class="scrap-labels">\n${labels.join('\n')}\n  </g>\n`;
+}
+
+/**
+ * Which of a part's two measurements it has room to carry on its own edges.
+ *
+ * A dimension on the edge it belongs to is read the way a tape is held, which
+ * is the whole reason these left the middle of the rectangle. Two conditions
+ * have to hold: the text fits along that edge, and the part is wide enough
+ * across that edge for the dimension and the part's name not to be sitting on
+ * each other. A part too small for that silently gets none -- its size is in
+ * the PARTS checklist, and a measurement written through a part's own name is
+ * worse than no measurement at all.
+ */
+function edgeDimsFor(placement, system, size) {
+  const across = formatLength(placement.w, system);
+  const down = formatLength(placement.h, system);
+  return {
+    across: textWidth(across, size) <= placement.w * FILL && placement.h >= size * EDGE_ROOM
+      ? across : '',
+    down: textWidth(down, size) <= placement.h * FILL && placement.w >= size * EDGE_ROOM
+      ? down : '',
+  };
+}
+
+/** The two edge dimensions for one part, drawn along the edges they measure. */
+function edgeDimSvg(placement, dims, size) {
+  const elements = [];
+  const cx = placement.x + placement.w / 2;
+  const cy = placement.y + placement.h / 2;
+
+  if (dims.across !== '') {
+    elements.push(`    <text class="edge-dim" x="${coordStr(cx)}"`
+      + ` y="${coordStr(placement.y + placement.h - size * 0.4)}" font-size="${coordStr(size)}"`
+      + ` text-anchor="middle">${escapeHtml(dims.across)}</text>`);
+  }
+  if (dims.down !== '') {
+    const x = placement.x + size * 0.9;
+    elements.push(`    <text class="edge-dim" x="${coordStr(x)}" y="${coordStr(cy)}"`
+      + ` font-size="${coordStr(size)}" text-anchor="middle"`
+      + ` transform="rotate(-90 ${coordStr(x)} ${coordStr(cy)})">${escapeHtml(dims.down)}</text>`);
+  }
+  return elements;
+}
+
+/**
+ * One sheet as a to-scale SVG, in explicit layers.
  *
  * The viewBox is the sheet's real dimensions in inches, so everything inside
  * is drawn in inches and the picture is to scale by construction.
  *
- * The data- attributes are emitted in this fixed order and nothing else may
- * be interleaved among them: data-part, data-x, data-y, data-w, data-h,
- * data-rotated. The parity test parses the emitted SVG with a regex over
- * exactly that order, so reordering them here silently breaks it.
+ * Layer order is deliberate: the sheet, then one group per part, then the cut
+ * lines, the scrap labels and the edge dimensions on top, so a numbered cut
+ * line is never hidden under a part it crosses.
+ *
+ * The data- attributes on a part rectangle are emitted in this fixed order and
+ * nothing else may be interleaved among them: data-part, data-x, data-y,
+ * data-w, data-h, data-rotated. The parity test parses the emitted SVG with a
+ * regex over exactly that order, so reordering them here silently breaks it.
  */
 export function sheetSvg(sheetPlan, materialPlan, params) {
   const system = params.displaySystem ?? 'imperial';
@@ -183,20 +366,39 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
   const scale = Math.min(widthIn, lengthIn);
   const maxLabelSize = Math.max(0.75, scale / 22);
   const stroke = Math.max(0.05, scale / 400);
+  const key = sheetKey(materialPlan, sheetPlan, materialPlan.sheets.indexOf(sheetPlan));
+
+  const edgeSize = maxLabelSize * DIM_RATIO;
+  const gutter = edgeSize * EDGE_GUTTER;
+  const edgeDims = [];
 
   const colors = colorsForSheet(sheetPlan.placements);
-  const rects = sheetPlan.placements.map((placement) => {
-    const dims = `${formatLength(placement.w, system)} x ${formatLength(placement.h, system)}`
-      + (placement.rotated ? ' (turned)' : '');
+  const marks = stepNumberMarks(sheetPlan, scale);
+  const blocks = sheetPlan.placements.map((placement) => {
+    // No dimension line in the middle any more: the measurements are written
+    // along the edges they measure, in their own layer below. The centered
+    // name is laid out inside a box shrunk by the gutter those edges take, so
+    // the two can never end up written over each other. That shrink is
+    // symmetric; the step number clearance after it is one sided, and the
+    // block centers on whatever box is left.
+    const dims = edgeDimsFor(placement, system, edgeSize);
+    edgeDims.push(...edgeDimSvg(placement, dims, edgeSize));
+    const box = clearOfMarks({
+      x: placement.x + (dims.down === '' ? 0 : gutter),
+      y: placement.y + (dims.across === '' ? 0 : gutter),
+      w: placement.w - (dims.down === '' ? 0 : 2 * gutter),
+      h: placement.h - (dims.across === '' ? 0 : 2 * gutter),
+    }, marks);
     const layout = labelLayout({
       label: placement.label,
       name: placement.name,
-      dims,
-      w: placement.w,
-      h: placement.h,
+      dims: '',
+      w: box.w,
+      h: box.h,
       maxSize: maxLabelSize,
     });
     return [
+      `  <g class="part-block">\n`,
       `    <rect class="cut-rect"`,
       ` data-part="${escapeHtml(placement.label)}"`,
       ` data-x="${coordStr(placement.x)}"`,
@@ -207,7 +409,8 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
       ` x="${coordStr(placement.x)}" y="${coordStr(placement.y)}"`,
       ` width="${coordStr(placement.w)}" height="${coordStr(placement.h)}"`,
       ` fill="${colors.get(placement.partId)}" stroke="#111" stroke-width="${coordStr(stroke)}" />\n`,
-      labelSvg(placement, layout),
+      labelSvg(box, layout),
+      `\n  </g>`,
     ].join('');
   }).join('\n');
 
@@ -220,7 +423,11 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
     `    <rect class="sheet-usable" x="${coordStr(usable.x)}" y="${coordStr(usable.y)}"`,
     ` width="${coordStr(usable.w)}" height="${coordStr(usable.h)}"`,
     ` fill="none" stroke="#999" stroke-dasharray="${coordStr(stroke * 6)}" stroke-width="${coordStr(stroke)}" />\n`,
-    rects,
-    `\n</svg>`,
+    blocks,
+    `\n`,
+    cutLinesSvg(marks, key, scale),
+    scrapLabelsSvg(sheetPlan, system, maxLabelSize),
+    edgeDims.length === 0 ? '' : `  <g class="edge-dims">\n${edgeDims.join('\n')}\n  </g>\n`,
+    `</svg>`,
   ].join('');
 }

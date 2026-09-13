@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateProject, VALIDATORS } from '../src/io/validate.js';
-import { createProjectStore, readProjectJson, exportProjectJson } from '../src/io/importExport.js';
+import { createProjectStore, readProjectJson, exportProjectJson, checkReadsBack } from '../src/io/importExport.js';
 import { newProject, SCHEMA_VERSION } from '../src/model.js';
 
 function goodProject() {
@@ -163,4 +163,30 @@ test('a project survives a file round trip unchanged', () => {
   const restored = readProjectJson(text);
   assert.equal(restored.ok, true);
   assert.deepEqual(restored.project, original);
+});
+
+// Export and Import, like Save and Open, have to agree about what a project is.
+// A file this build would refuse to read back is not a copy of anybody's work.
+test('checkReadsBack passes a project that would import again', () => {
+  assert.deepEqual(checkReadsBack(validateProject(goodProject()).project), { ok: true });
+});
+
+test('checkReadsBack catches a part left behind by a deleted material group', () => {
+  const orphaned = { ...goodProject(), materials: [] };
+  const result = checkReadsBack(orphaned);
+  assert.equal(result.ok, false);
+  assert.equal(result.field, 'parts');
+  assert.match(result.message, /does not declare/);
+});
+
+test('a part added before any material group is named as unassigned, not quoted as empty', () => {
+  // The app lets someone add a part first and pick its group later, so this is
+  // the message they get, and an empty pair of quotes tells them nothing.
+  const result = checkReadsBack({
+    ...goodProject(),
+    materials: [],
+    parts: [{ id: 'p1', name: '', qty: 1, widthIn: 12, lengthIn: 12, materialId: '' }],
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.message, /^A part with no name yet is not in any material group\./);
 });

@@ -33,6 +33,65 @@ header.app-head {
   border-bottom: 2px solid var(--line);
 }
 
+/* The project's name is the heading; every action lives behind one menu, so
+   the header stays one line tall on a phone. */
+.head-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.head-row h1 { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+details.menu { flex: 0 0 auto; position: relative; }
+
+details.menu > summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+details.menu > summary::-webkit-details-marker { display: none; }
+
+.menu-body {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  min-width: 15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+}
+
+.menu-body hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+.menu-body a {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+}
+
+dialog {
+  width: min(28rem, 92vw);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+dialog h2 { margin-top: 0; }
+dialog label { margin-top: 10px; }
+
 h1 { font-size: 1.35rem; margin: 0 0 4px; }
 h2 { font-size: 1.1rem; margin: 0 0 8px; }
 h3 { font-size: 1rem; margin: 0 0 6px; }
@@ -113,6 +172,20 @@ details.panel > .panel-body { padding: 0 12px 12px; }
   font-weight: 600;
 }
 
+/* One list for the whole project, above the groups, and it goes to paper. */
+.shopping-list {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--buy-line);
+  border-left-width: 5px;
+  border-radius: 6px;
+  background: var(--buy-bg);
+}
+
+.shopping-list h2 { margin: 0 0 6px; font-size: 1rem; }
+.shopping-list ul { margin: 0; padding-left: 1.3em; }
+.shopping-list li { font-weight: 600; }
+
 .banner-warn {
   margin: 8px 0;
   padding: 10px 12px;
@@ -142,6 +215,23 @@ details.panel > .panel-body { padding: 0 12px 12px; }
   padding: 12px;
 }
 
+/* View-only rotation. Applied to the wrapper, never to the SVG, so the drawing
+   itself is identical whichever way it is turned on screen. */
+.sheet-view.rotated { transform: rotate(90deg); transform-origin: center; }
+.sheet-view.rotated .sheet-svg { max-height: 40vh; }
+
+/* The CUTS list below never rotates with the picture, so this marker is what
+   stops the two from being read as if they agreed on which edge is which. */
+.view-rotated-note {
+  margin: 6px 0 0;
+  padding: 4px 10px;
+  border: 1px solid var(--warn-line);
+  border-radius: 6px;
+  background: var(--warn-bg);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
 .sheet-svg {
   display: block;
   max-width: 100%;
@@ -152,13 +242,55 @@ details.panel > .panel-body { padding: 0 12px 12px; }
 
 .cut-label { fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.09; }
 .cut-dims { fill: #f2f2f2; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 0.06; }
+.edge-dim { fill: #f2f2f2; paint-order: stroke; stroke: rgba(0, 0, 0, 0.6); stroke-width: 0.06; }
+.scrap-label { fill: #6a6a6a; }
 
-.table-wrap { overflow-x: auto; }
+/* Faint by default: the cut lines are a map of the sequence, and only the step
+   being read should shout. app.js adds .is-active on hover or click. */
+.cut-line { opacity: 0.35; }
+.cut-step-no { fill: #333; font-weight: 700; paint-order: stroke; stroke: rgba(255, 255, 255, 0.8); stroke-width: 0.08; }
 
-table.cut-list { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-table.cut-list th, table.cut-list td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
-table.cut-list tr.row-sheet th { background: #eceef1; }
-table.cut-list tr.row-part td:first-child { font-weight: 700; }
+.cut-line.is-active { stroke: #c0261a !important; opacity: 1; stroke-width: 0.22 !important; }
+.cut-step-no.is-active { fill: #c0261a; }
+.sheet-todo ol.cuts li.is-active { background: #fdecea; box-shadow: inset 3px 0 0 #c0261a; }
+
+/* The per-sheet to-do list, directly under the sheet it belongs to. */
+.sheet-todo { margin-top: 10px; font-size: 0.9rem; }
+.sheet-todo-title { font-size: 0.86rem; font-weight: 600; color: var(--ink-soft); margin: 0 0 6px; }
+.sheet-todo h4 {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  margin: 10px 0 4px;
+  color: var(--ink-soft);
+}
+
+.sheet-todo ol.cuts { margin: 0; padding-left: 1.6em; }
+.sheet-todo ol.cuts li { padding: 3px 4px; border-radius: 4px; }
+
+.sheet-todo ul.parts { margin: 0; padding: 0; list-style: none; }
+.sheet-todo ul.parts label { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
+.sheet-todo ul.parts input[type="checkbox"] { width: 1.1em; height: 1.1em; flex: none; }
+
+.sheet-todo .leftover { margin: 8px 0 0; color: var(--ink-soft); font-size: 0.84rem; }
+
+/* Containment made visible: a group's sheet sizes sit inside its own box with
+   a left rule, so "these sizes belong to this group" survives phone width. */
+.sheet-group {
+  margin: 10px 0 0;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+}
+
+.sheet-group > legend {
+  padding: 0 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
 .muted { color: var(--ink-soft); font-size: 0.86rem; }
 

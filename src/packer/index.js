@@ -8,7 +8,7 @@
 // saw in one pass.
 
 import { expandParts } from '../model.js';
-import { gtz } from '../geometry.js';
+import { EPS, gtz } from '../geometry.js';
 import { STRATEGIES } from './strategies.js';
 import { cutStepsFor } from './cutlist.js';
 import {
@@ -17,6 +17,7 @@ import {
   placeInLeaf,
   placementsOf,
   fitsSomewhere,
+  leaves,
 } from './guillotine.js';
 
 const FALLBACK_SHEET = { widthIn: 48, lengthIn: 96, label: '48 x 96' };
@@ -59,8 +60,11 @@ function usableRegion(spec, edgeTrimIn) {
 function fillSheet(spec, source, sheetNumber, queue, params, system) {
   const tree = makeRoot(spec.widthIn, spec.lengthIn, params.edgeTrimIn);
   const remaining = [];
-  for (const instance of queue) {
-    const choice = choosePlacement(tree, instance, params.kerfIn);
+  for (let index = 0; index < queue.length; index += 1) {
+    const instance = queue[index];
+    // The rest of the queue is what lets choosePlacement see that equal-width
+    // parts are still coming and open one strip wide enough for all of them.
+    const choice = choosePlacement(tree, instance, params.kerfIn, queue.slice(index + 1));
     if (choice === null) {
       remaining.push(instance);
       continue;
@@ -79,6 +83,13 @@ function fillSheet(spec, source, sheetNumber, queue, params, system) {
 
   const usable = { x: tree.x, y: tree.y, w: tree.w, h: tree.h };
   const placedArea = placements.reduce((sum, p) => sum + p.w * p.h, 0);
+  // The one place leftovers are derived. The diagram's scrap labels, the
+  // per-sheet leftover summary and the cut list's traceability all read this
+  // array, so nothing downstream can disagree about what is left over.
+  const offcuts = leaves(tree)
+    .filter((leaf) => Math.min(leaf.w, leaf.h) > EPS)
+    .map((leaf) => ({ x: leaf.x, y: leaf.y, w: leaf.w, h: leaf.h }))
+    .sort((a, b) => (b.w * b.h) - (a.w * a.h));
   const sheetPlan = {
     sheetSpecId: spec.id ?? spec.label,
     label: `Sheet ${sheetNumber}: ${sheetLabel(spec)}`,
@@ -87,6 +98,7 @@ function fillSheet(spec, source, sheetNumber, queue, params, system) {
     lengthIn: spec.lengthIn,
     usable,
     placements,
+    offcuts,
     cuts: [],
     wasteAreaIn2: usable.w * usable.h - placedArea,
     tree,

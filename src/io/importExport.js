@@ -19,6 +19,24 @@ export function exportProjectJson(project, { now = () => new Date() } = {}) {
   return projectJson(stampForSave(project, { now }));
 }
 
+/**
+ * Would this project come back if it were written out and read again?
+ *
+ * Export and Import have to agree about what a project is, and so do Save and
+ * Open: a project that goes out through one door and is refused at the other
+ * is work that was reported kept and then silently lost. The app can be walked
+ * into a project the chain rejects -- a part added before any material group
+ * exists, a group deleted out from under its parts -- so the way out is to run
+ * the reading chain before writing anything and say what is wrong while the
+ * project is still on screen to fix.
+ *
+ * Returns { ok: true } or { ok: false, field, message }.
+ */
+export function checkReadsBack(project) {
+  const checked = validateProject(stampForSave(project));
+  return checked.ok ? { ok: true } : { ok: false, field: checked.field, message: checked.message };
+}
+
 /** Parse and validate a file's text without touching anything. */
 export function readProjectJson(text) {
   let parsed;

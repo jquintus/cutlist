@@ -7,6 +7,7 @@ import {
   customSheet,
   THICKNESS_PRESETS,
   SHEET_PRESETS,
+  thicknessLabelFor,
 } from '../src/units.js';
 
 test('toInches converts millimeters and passes inches through', () => {
@@ -63,4 +64,18 @@ test('a custom value is preset shaped, not a separate code path', () => {
   assert.equal(sheet.widthIn, 30);
   assert.equal(sheet.lengthIn, 62.5);
   assert.ok(Object.hasOwn(sheet, 'label'));
+});
+
+test('a typed thickness gets the label the rest of the project shows', () => {
+  // The heading and the shopping list read this label. If it lags the number,
+  // someone buys the wrong plywood for the whole project.
+  assert.equal(thicknessLabelFor(0.7, 'imperial'), '11/16 in');
+  assert.equal(thicknessLabelFor(0.75, 'metric'), '19.0 mm');
+});
+
+test('a thickness nobody has entered yet has no label at all', () => {
+  // Mid-keystroke the box is empty and the number is zero. "0 in" in the
+  // heading reads as a decision; nothing reads as the box still being filled.
+  assert.equal(thicknessLabelFor(0), '');
+  assert.equal(thicknessLabelFor(Number.NaN), '');
 });

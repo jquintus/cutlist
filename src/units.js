@@ -73,6 +73,20 @@ export function customThickness(value, unit) {
   };
 }
 
+/**
+ * What a thickness is called everywhere the project talks about it.
+ *
+ * Headings and the shopping list read a material's thickness label, never its
+ * number of inches, so a thickness typed in by hand has to bring its own label
+ * with it. Left to the preset's old label, the whole project goes on saying
+ * 3/4 in over sheets that are something else, and the shopping list buys the
+ * wrong plywood for every group. A thickness nobody has entered yet has no
+ * label rather than a label reading zero.
+ */
+export function thicknessLabelFor(inches, system = 'imperial') {
+  return Number.isFinite(inches) && inches > 0 ? formatLength(inches, system) : '';
+}
+
 /** Build a preset-shaped sheet size from values the user typed in. */
 export function customSheet(widthValue, lengthValue, unit) {
   const widthIn = toInches(widthValue, unit);

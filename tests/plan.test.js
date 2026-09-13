@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { planProject } from '../src/plan.js';
 import { normalizeProject } from '../src/model.js';
 import { validatePlan } from '../src/packer/invariants.js';
+import { renderResults } from '../src/ui/renderResults.js';
 import { shortfallProject, mixedPartsProject } from './fixtures/layouts.js';
 
 function allPlacements(plan) {
@@ -111,4 +112,39 @@ test('ordering is stable: materials in project order, on hand sheets before boug
   assert.ok(sources.includes('to-buy'), 'this fixture is meant to overflow onto a bought sheet');
   assert.equal(sources.lastIndexOf('on-hand') + 1, sources.indexOf('to-buy'));
   assert.deepEqual(planProject(project), plan);
+});
+
+test('the shopping list names every group that ran short, once each', () => {
+  const project = normalizeProject({
+    params: { kerfIn: 0.125, edgeTrimIn: 0 },
+    materials: [
+      { id: 'm1', name: 'Three quarter ply', thicknessLabel: '3/4 in', sheets: [{ widthIn: 48, lengthIn: 96, qty: 0 }] },
+      { id: 'm2', name: 'Half ply', sheets: [{ widthIn: 48, lengthIn: 96, qty: 1 }] },
+    ],
+    parts: [
+      { id: 'p1', name: 'Fence', qty: 2, widthIn: 4, lengthIn: 30, materialId: 'm1' },
+      { id: 'p2', name: 'Panel', qty: 1, widthIn: 10, lengthIn: 10, materialId: 'm2' },
+    ],
+  });
+  const plan = planProject(project);
+  assert.deepEqual(plan.shoppingList, [{
+    materialId: 'm1',
+    name: 'Three quarter ply',
+    thicknessLabel: '3/4 in',
+    qty: 1,
+    widthIn: 48,
+    lengthIn: 96,
+    label: '48 x 96',
+  }]);
+});
+
+test('a project with everything on hand has nothing to buy', () => {
+  const project = normalizeProject({
+    params: { kerfIn: 0.125, edgeTrimIn: 0 },
+    materials: [{ id: 'm1', name: 'Ply', sheets: [{ widthIn: 48, lengthIn: 96, qty: 1 }] }],
+    parts: [{ id: 'p1', name: 'Panel', qty: 1, widthIn: 10, lengthIn: 10, materialId: 'm1' }],
+  });
+  const plan = planProject(project);
+  assert.deepEqual(plan.shoppingList, []);
+  assert.ok(!renderResults(plan).includes('shopping-list'), 'an empty shopping list must not render a section');
 });

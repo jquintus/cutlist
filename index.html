@@ -9,25 +9,56 @@
 </head>
 <body>
 <header class="app-head">
-  <h1>cutlist</h1>
+  <div class="head-row">
+    <h1 id="project-name">cutlist</h1>
+    <details class="menu">
+      <summary>Menu</summary>
+      <div class="menu-body">
+        <button id="btn-new" type="button">New</button>
+        <button id="btn-open" type="button">Open&hellip;</button>
+        <button id="btn-save" type="button">Save</button>
+        <button id="btn-save-as" type="button">Save As&hellip;</button>
+        <hr />
+        <button id="btn-share" type="button">Copy share link</button>
+        <button id="btn-export" type="button">Export JSON</button>
+        <button id="btn-import" type="button">Import JSON</button>
+        <a id="link-upload" href="https://github.com">Save to GitHub</a>
+      </div>
+    </details>
+  </div>
   <p class="muted">Plywood in, a guillotine cut plan out. Check every measurement before you cut.</p>
-  <div class="row app-controls">
-    <div class="project-picker">
-      <label for="project-picker">Saved projects</label>
-      <select id="project-picker"><option value="">Loading...</option></select>
-    </div>
-    <div><button id="btn-share" type="button">Copy share link</button></div>
-    <div><button id="btn-print" type="button" class="secondary">Print cut list</button></div>
-  </div>
-  <div class="row app-controls">
-    <div><button id="btn-export" type="button" class="secondary">Export JSON</button></div>
-    <div><button id="btn-import" type="button" class="secondary">Import JSON</button></div>
-    <div><button id="btn-upload" type="button" class="secondary">Direct upload</button></div>
-  </div>
-  <p id="picker-status" class="muted"></p>
   <p id="status" class="muted"></p>
   <input id="import-file" type="file" accept="application/json,.json" hidden />
 </header>
+
+<dialog id="dialog-open">
+  <form method="dialog">
+    <h2>Open a project</h2>
+    <label for="project-picker">Projects in this build</label>
+    <select id="project-picker"><option value="">Loading&hellip;</option></select>
+    <p id="picker-status" class="muted"></p>
+    <label for="local-picker">Saved in this browser</label>
+    <select id="local-picker"><option value="">Nothing saved here yet</option></select>
+    <p id="dialog-status" class="muted"></p>
+    <div class="row"><button value="cancel">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="dialog-save-as">
+  <!-- Save is listed before Cancel on purpose: a form with method="dialog"
+       submits via its first submit button when Enter is pressed in a text
+       field, so this order is what makes Enter in the name field save rather
+       than cancel. Do not reorder these. -->
+  <form method="dialog">
+    <h2>Save project as</h2>
+    <label for="save-as-name">Project name</label>
+    <input id="save-as-name" type="text" autocomplete="off" />
+    <div class="row">
+      <button value="save">Save</button>
+      <button value="cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
 
 <main>
   <div id="results"></div>

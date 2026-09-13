@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { packMaterial, cutStepsFor } from '../src/packer/index.js';
 import { normalizeProject } from '../src/model.js';
+import { readFile } from 'node:fs/promises';
+import { validateProject } from '../src/io/validate.js';
+import { planProject } from '../src/plan.js';
 import { mixedPartsProject } from './fixtures/layouts.js';
 
 function pack(project) {
@@ -67,7 +70,7 @@ test('every step names the edge to measure from and gives a measurement', () => 
   const result = pack(mixedPartsProject());
   for (const sheet of result.sheets) {
     for (const step of sheet.cuts) {
-      assert.match(step.note, /from the (left|bottom) edge/);
+      assert.match(step.note, /from the (left|top) edge/);
       assert.ok(Number.isFinite(step.atIn));
       assert.ok(step.toIn > step.fromIn);
     }
@@ -121,11 +124,16 @@ test('cutStepsFor is a pure function of the sheet plan and repeats exactly', () 
 // A symmetric layout: the first cut halves the sheet, so steps 2 and 3 each
 // cut a 48 by 48 piece and there are two of those on the bench at once. This
 // is exactly the situation a size-only instruction cannot describe.
+//
+// The part is grain locked so that the packer's strip affinity cannot gang all
+// four panels onto a single 24 in strip. A ganged run leaves no two same-sized
+// unfinished pieces waiting at once and makes no cut twice, which is precisely
+// what the two tests below need this fixture to produce.
 function twinPiecesProject() {
   return normalizeProject({
     params: { kerfIn: 0, edgeTrimIn: 0 },
     materials: [{ id: 'm1', name: 'Ply', sheets: [{ widthIn: 48, lengthIn: 96, qty: 1 }] }],
-    parts: [{ id: 'p1', name: 'Panel', qty: 4, widthIn: 24, lengthIn: 48, materialId: 'm1' }],
+    parts: [{ id: 'p1', name: 'Panel', qty: 4, widthIn: 24, lengthIn: 48, materialId: 'm1', grainLocked: true }],
   });
 }
 
@@ -184,12 +192,9 @@ test('no two steps send someone to the same piece', () => {
     'this layout must really make the same cut on two same-sized pieces',
   );
 
-  // Which piece to pick up and where to cut it, with the results stripped off.
-  const instructions = sheet.cuts.map((step) => {
-    const [instruction, results] = step.note.split(' Makes ');
-    assert.ok(results, `step ${step.seq} does not say what it produces`);
-    return instruction;
-  });
+  // Which piece to pick up and where to cut it, read straight off the field
+  // that carries exactly that and nothing else. No splitting prose apart.
+  const instructions = sheet.cuts.map((step) => step.instruction);
   assert.equal(
     new Set(instructions).size,
     instructions.length,
@@ -197,11 +202,36 @@ test('no two steps send someone to the same piece', () => {
   );
 });
 
+// A cut deliberately says nothing about the offcuts it leaves, so the sequence
+// itself has to be what accounts for them: every piece a step produces is
+// either a finished part on this sheet, a piece a later step picks back up, or
+// a leftover the sheet reports once at the end.
+test('every piece a step produces is accounted for somewhere', () => {
+  const sheet = pack(twinPiecesProject()).sheets[0];
+  const labels = new Set(sheet.placements.map((placement) => placement.label));
+  const cutAgain = new Set(sheet.cuts.map((step) => step.pieceBefore.id));
+  const isLeftover = (piece) => sheet.offcuts.some((offcut) =>
+    Math.abs(offcut.w - piece.w) < 1e-6 && Math.abs(offcut.h - piece.h) < 1e-6);
+
+  for (const step of sheet.cuts) {
+    for (const piece of step.pieceAfter) {
+      if (piece.role === 'part') {
+        assert.ok(labels.has(piece.id), `step ${step.seq} frees ${piece.id}, which is not on this sheet`);
+      } else {
+        assert.ok(
+          cutAgain.has(piece.id) || isLeftover(piece),
+          `step ${step.seq} produces a piece that is neither cut again nor reported as a leftover`,
+        );
+      }
+    }
+  }
+});
+
 test('every step names the piece to cut and where that piece came from', () => {
   const sheet = pack(twinPiecesProject()).sheets[0];
   for (const step of sheet.cuts) {
     assert.ok(
-      step.note.includes(step.pieceBefore.id),
+      step.note.includes(step.pieceBefore.address),
       `step ${step.seq} does not name the piece it cuts`,
     );
     if (step.pieceBefore.fromSeq === null) {
@@ -237,4 +267,135 @@ test('the edge trimmed off the sheet is called out on the piece it changes', () 
   });
   const first = pack(trimmed).sheets[0].cuts[0];
   assert.match(first.note, /edges trimmed/, 'the starting piece is not the full sheet once trim comes off');
+});
+
+// The three seed projects, read from disk, are the closest thing this build
+// has to a real user's project, so the "nothing internal reaches a person"
+// rules are checked against them and not only against a fixture.
+async function seedPlans() {
+  const files = ['omnisled-full-size.json', 'omnisled-mini.json', 'omnisled-both.json'];
+  return Promise.all(files.map(async (file) => {
+    const text = await readFile(new URL(`../projects/${file}`, import.meta.url), 'utf8');
+    const checked = validateProject(JSON.parse(text));
+    assert.equal(checked.ok, true, `projects/${file}: ${checked.message ?? ''}`);
+    return { file, plan: planProject(checked.project) };
+  }));
+}
+
+function eachSeedStep(plans, check) {
+  for (const { file, plan } of plans) {
+    for (const material of plan.materials) {
+      for (const sheet of material.sheets) {
+        for (const step of sheet.cuts) check(step, `${file} ${material.name} step ${step.seq}`);
+      }
+    }
+  }
+}
+
+test('no step ever shows an internal piece identifier', async () => {
+  eachSeedStep(await seedPlans(), (step, where) => {
+    assert.doesNotMatch(step.note, /\bp\d+\b/, `${where} leaks an internal identifier`);
+  });
+});
+
+test('a step gives exactly one measurement, so nobody has to pick which one', async () => {
+  eachSeedStep(await seedPlans(), (step, where) => {
+    const measurements = step.note.split(' at ').length - 1;
+    assert.equal(measurements, 1, `${where} gives ${measurements} measurements`);
+  });
+});
+
+test('the instruction field is one complete saw action with no result clause', async () => {
+  eachSeedStep(await seedPlans(), (step, where) => {
+    assert.ok(step.instruction.length > 0, `${where} has no instruction`);
+    assert.ok(step.instruction.endsWith('.'), `${where} instruction is not a sentence`);
+    assert.ok(!step.instruction.includes(' Frees '), `${where} mixes its result into the action`);
+    const expected = step.frees === '' ? step.instruction : `${step.instruction} ${step.frees}`;
+    assert.equal(step.note, expected, `${where} note is not its instruction plus its result`);
+  });
+});
+
+test('every cut line lands inside the sheet on the axis it runs across', async () => {
+  for (const { file, plan } of await seedPlans()) {
+    for (const material of plan.materials) {
+      for (const sheet of material.sheets) {
+        for (const step of sheet.cuts) {
+          const span = step.axis === 'v' ? sheet.widthIn : sheet.lengthIn;
+          assert.ok(
+            step.lineIn > 0 && step.lineIn < span,
+            `${file} step ${step.seq} draws a cut at ${step.lineIn}, outside the sheet`,
+          );
+          assert.ok(step.toIn > step.fromIn);
+        }
+      }
+    }
+  }
+});
+
+test('every piece address reads as a place on the bench, never as an id', async () => {
+  const shapes = /^(the full sheet|the sheet with its edges trimmed|the (left|right|bottom|top) piece from step \d+|[A-Z]+\d+)$/;
+  for (const { file, plan } of await seedPlans()) {
+    for (const material of plan.materials) {
+      for (const sheet of material.sheets) {
+        const addresses = new Set();
+        for (const step of sheet.cuts) {
+          for (const piece of [step.pieceBefore, ...step.pieceAfter]) {
+            assert.match(piece.address, shapes, `${file}: "${piece.address}" is not an address`);
+          }
+          assert.ok(
+            !addresses.has(step.pieceBefore.address),
+            `${file}: two steps send someone to ${step.pieceBefore.address}`,
+          );
+          addresses.add(step.pieceBefore.address);
+        }
+      }
+    }
+  }
+});
+
+// The picture and the words have to describe the same sheet. The diagram draws
+// x = 0 at the left and y = 0 at the top, so a step that measures from "the
+// top edge" has to draw its line that far DOWN from the piece's top, and the
+// piece it calls "top" has to be the one drawn above the line. When these two
+// disagree, someone lines the printed diagram up with the real sheet, follows
+// the written measurement, and cuts the panel at the wrong end.
+test('the first cut on a sheet is drawn where its measurement says, from the named edge', async () => {
+  for (const { file, plan } of await seedPlans()) {
+    for (const material of plan.materials) {
+      for (const sheet of material.sheets) {
+        const [step] = sheet.cuts;
+        if (step === undefined) continue;
+        const origin = step.axis === 'v' ? sheet.usable.x : sheet.usable.y;
+        assert.equal(step.referenceEdge, step.axis === 'v' ? 'left' : 'top');
+        assert.ok(
+          Math.abs(step.lineIn - (origin + step.atIn)) < 1e-9,
+          `${file} step 1 says ${step.atIn} from the ${step.referenceEdge} edge but draws at ${step.lineIn}`,
+        );
+      }
+    }
+  }
+});
+
+test('a part on the left or top side of a cut is drawn on that side of the line', async () => {
+  for (const { file, plan } of await seedPlans()) {
+    for (const material of plan.materials) {
+      for (const sheet of material.sheets) {
+        const drawn = new Map(sheet.placements.map((placement) => [placement.label, placement]));
+        for (const step of sheet.cuts) {
+          for (const piece of step.pieceAfter) {
+            if (piece.role !== 'part') continue;
+            const placement = drawn.get(piece.id);
+            assert.ok(placement !== undefined, `${file}: ${piece.id} is freed but never drawn`);
+            const near = step.axis === 'v' ? placement.x + placement.w : placement.y + placement.h;
+            const far = step.axis === 'v' ? placement.x : placement.y;
+            const onNearSide = piece.side === 'left' || piece.side === 'top';
+            assert.ok(
+              onNearSide ? near <= step.lineIn + 1e-9 : far >= step.lineIn - 1e-9,
+              `${file} step ${step.seq}: ${piece.id} is called the ${piece.side} piece but is not drawn there`,
+            );
+          }
+        }
+      }
+    }
+  }
 });

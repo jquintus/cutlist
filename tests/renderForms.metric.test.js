@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planProject } from '../src/plan.js';
 import { normalizeProject } from '../src/model.js';
-import { renderResults } from '../src/ui/renderForms.js';
+import { renderResults } from '../src/ui/renderResults.js';
 import { mixedPartsProject } from './fixtures/layouts.js';
 
 test('a metric project renders its diagram dimensions in millimeters, matching the table', () => {

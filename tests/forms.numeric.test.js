@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { renderForms } from '../src/ui/renderForms.js';
 import { normalizeProject } from '../src/model.js';
 
-function formsHtml() {
+// The thickness measurement box only exists while that group's thickness
+// control is in its custom mode -- there is one thickness control now, not a
+// preset list and a spare number box side by side. So these tests render the
+// group in custom mode, which is the only state in which the box is on screen
+// and therefore the only state in which how it behaves matters.
+const CUSTOM_THICKNESS = new Map([['m1', { sizeMode: 'custom' }]]);
+
+function formsHtml(uiState = CUSTOM_THICKNESS) {
   return renderForms(normalizeProject({
     name: 'Sled',
     params: { kerfIn: 0.125, edgeTrimIn: 0 },
@@ -14,7 +21,7 @@ function formsHtml() {
       sheets: [{ id: 'm1s1', widthIn: 48, lengthIn: 96, qty: 1 }],
     }],
     parts: [{ id: 'p1', name: 'Base', qty: 1, widthIn: 17.75, lengthIn: 30, materialId: 'm1' }],
-  }));
+  }), uiState);
 }
 
 /** The one <input ...> tag whose data-field is this path. */
@@ -67,4 +74,10 @@ test('every numeric field is marked so the typed text is preserved across a redr
 
 test('a fractional dimension is written into the box as entered', () => {
   assert.match(inputFor(formsHtml(), 'parts.0.widthIn'), /value="17\.75"/);
+});
+
+test('a preset thickness shows one control, with no spare measurement box beside it', () => {
+  const html = formsHtml(new Map());
+  assert.ok(!html.includes('data-field="materials.0.thicknessIn"'), 'two thickness inputs are shown at once');
+  assert.match(html, /data-field="materials\.0\.thicknessPreset"/);
 });

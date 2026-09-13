@@ -61,6 +61,22 @@ export function planProject(project) {
     }
   }
 
+  // Derived here, with the layout, not in a renderer: nothing downstream
+  // re-derives a layout, and what to buy is part of the layout's result. One
+  // entry per group that ran short, which is what makes it a single list for
+  // the whole project rather than a banner per group.
+  const shoppingList = materials
+    .filter((materialPlan) => materialPlan.extraSheetsNeeded > 0)
+    .map((materialPlan) => ({
+      materialId: materialPlan.materialId,
+      name: materialPlan.name,
+      thicknessLabel: materialPlan.thicknessLabel,
+      qty: materialPlan.extraSheetsNeeded,
+      widthIn: materialPlan.buySpec.widthIn,
+      lengthIn: materialPlan.buySpec.lengthIn,
+      label: materialPlan.buySpec.label,
+    }));
+
   return {
     projectName: project.name,
     date: project.date,
@@ -68,6 +84,7 @@ export function planProject(project) {
     displaySystem: project.displaySystem,
     params: project.params,
     materials,
+    shoppingList,
     // Out of scope stock passes straight through. The packer is never handed
     // this array, which is why these items cannot end up on a sheet.
     unplanned: project.unplanned,

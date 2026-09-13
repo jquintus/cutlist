@@ -74,6 +74,18 @@ function materialsWellFormed(raw) {
   return null;
 }
 
+/**
+ * How a message points at a part.
+ *
+ * A part typed in but not named yet is ordinary, and these messages are read
+ * by whoever is about to fix the project, so an unnamed part has to be
+ * described rather than quoted as an empty pair of quotes.
+ */
+function partNamed(part) {
+  const name = typeof part.name === 'string' ? part.name.trim() : '';
+  return name === '' ? 'A part with no name yet' : `Part "${name}"`;
+}
+
 function partsWellFormed(raw) {
   if (raw.parts !== undefined && !Array.isArray(raw.parts)) {
     return { field: 'parts', message: 'The parts list is not a list.' };
@@ -84,13 +96,20 @@ function partsWellFormed(raw) {
       return { field: 'parts', message: 'One of the parts is not an object.' };
     }
     if (!finitePositive(part.widthIn) || !finitePositive(part.lengthIn)) {
-      return { field: 'parts', message: `Part "${part.name}" has a width or length that is not a positive number.` };
+      return { field: 'parts', message: `${partNamed(part)} has a width or length that is not a positive number.` };
     }
     if (!finiteNonNegative(part.qty)) {
-      return { field: 'parts', message: `Part "${part.name}" has a quantity that is not a number.` };
+      return { field: 'parts', message: `${partNamed(part)} has a quantity that is not a number.` };
+    }
+    // Told apart on purpose. A part that names a group this project has never
+    // heard of is a broken file; a part that names no group at all is the
+    // ordinary case of adding a part before there is a group to put it in, and
+    // saying so is what tells someone which of the two to fix.
+    if (part.materialId === undefined || part.materialId === null || String(part.materialId).trim() === '') {
+      return { field: 'parts', message: `${partNamed(part)} is not in any material group. Add a material group and assign it.` };
     }
     if (!declared.has(part.materialId)) {
-      return { field: 'parts', message: `Part "${part.name}" is assigned to material group "${part.materialId}", which this project does not declare.` };
+      return { field: 'parts', message: `${partNamed(part)} is assigned to material group "${part.materialId}", which this project does not declare.` };
     }
   }
   return null;

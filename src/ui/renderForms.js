@@ -1,13 +1,20 @@
-// Presentational string builders for the whole page body.
+// Presentational string builders for the editing surface.
 //
-// Everything here is a pure function of the project or the plan. All state
-// and all event wiring lives in app.js, so nothing in this file reaches for
-// the DOM and nothing here decides anything.
+// A pure function of the project and of `uiState`, the map of control modes
+// app.js holds. All state and all event wiring lives in app.js, so nothing here
+// reaches for the DOM or decides anything. The results surface is
+// renderResults.js, and the two never import from each other.
+//
+// Why a control's mode is passed in rather than derived: the preset dropdowns
+// used to recompute their own mode from the dimensions on every render, so
+// choosing "Custom" without changing a number re-derived the old preset and the
+// click did nothing visible. The mode is now stored, keyed by the entity's own
+// id, and only the dimensions are read from the project. It is deliberately not
+// stored on the project: normalizeProject returns a fixed object literal and
+// drops unknown fields, so a mode written there would not survive a keystroke.
 
-import { THICKNESS_PRESETS, SHEET_PRESETS, formatLength } from '../units.js';
+import { THICKNESS_PRESETS, SHEET_PRESETS } from '../units.js';
 import { escapeHtml } from './escape.js';
-import { sheetSvg } from './renderDiagram.js';
-import { cutListRows, cutListHtml } from './renderTable.js';
 
 function option(value, label, selected) {
   return `<option value="${escapeHtml(value)}"${selected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
@@ -43,7 +50,7 @@ function numericInput({ key, value, keypad = 'decimal' }) {
 function metaPanel(project) {
   return `<details class="panel" data-panel="meta"><summary>Project</summary><div class="panel-body">
   <div class="row">
-    ${field('Name', textInput({ key: 'name', value: project.name, placeholder: 'OmniSled' }))}
+    ${field('Name', textInput({ key: 'name', value: project.name }))}
     ${field('Date', textInput({ key: 'date', value: project.date, type: 'date' }))}
   </div>
   ${field('Notes', `<textarea rows="3" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea>`)}
@@ -64,50 +71,91 @@ function paramsPanel(project) {
 </div></details>`;
 }
 
-function thicknessSelect(material, index) {
-  const match = THICKNESS_PRESETS.find((preset) => Math.abs(preset.inches - material.thicknessIn) < 1e-6);
-  const options = THICKNESS_PRESETS
-    .map((preset) => option(preset.id, preset.label, match !== undefined && preset.id === match.id))
-    .join('');
-  return `<select data-focus-key="m${index}.thickness" data-field="materials.${index}.thicknessPreset">
-    ${options}${option('custom', 'Custom', match === undefined)}
-  </select>`;
+/**
+ * The control's mode: what the person last chose, or what the numbers imply
+ * when they have not chosen anything yet.
+ *
+ * `uiState` is a Map keyed by the entity's own stable id, so a mode follows its
+ * sheet or its group across a re-render and across the removal of a sibling.
+ */
+function modeFor(uiState, id, derived) {
+  return uiState?.get(id)?.sizeMode ?? derived;
 }
 
-function sheetRow(materialIndex, sheet, sheetIndex) {
+/**
+ * One thickness control, not two.
+ *
+ * The preset list and the typed-in measurement were two inputs side by side,
+ * which left it ambiguous which one won. Now the list carries an "Other" entry
+ * and the measurement box appears only under it.
+ */
+function thicknessControl(material, index, uiState) {
+  const match = THICKNESS_PRESETS.find((preset) => Math.abs(preset.inches - material.thicknessIn) < 1e-6);
+  const mode = modeFor(uiState, material.id, match === undefined ? 'custom' : 'preset');
+  const options = THICKNESS_PRESETS
+    .map((preset) => option(preset.id, preset.label, mode === 'preset' && match !== undefined && preset.id === match.id))
+    .join('');
+
+  const select = `<select data-focus-key="m${index}.thickness" data-field="materials.${index}.thicknessPreset">
+    ${options}${option('custom', 'Other...', mode === 'custom')}
+  </select>`;
+
+  const custom = mode === 'custom'
+    ? field('Thickness (in)', numericInput({ key: `materials.${index}.thicknessIn`, value: material.thicknessIn }))
+    : '';
+  return field('Thickness', select) + custom;
+}
+
+function sheetRow(materialIndex, sheet, sheetIndex, uiState) {
   const preset = SHEET_PRESETS.find((p) => p.widthIn === sheet.widthIn && p.lengthIn === sheet.lengthIn);
+  const mode = modeFor(uiState, sheet.id, preset === undefined ? 'custom' : 'preset');
   const options = SHEET_PRESETS
-    .map((p) => option(p.id, p.label, preset !== undefined && p.id === preset.id))
+    .map((p) => option(p.id, p.label, mode === 'preset' && preset !== undefined && p.id === preset.id))
     .join('');
   const base = `materials.${materialIndex}.sheets.${sheetIndex}`;
   return `<div class="entry"><div class="row">
-    ${field('Size preset', `<select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', preset === undefined)}</select>`)}
+    ${field('Size preset', `<select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select>`)}
     ${field('Width (in)', numericInput({ key: `${base}.widthIn`, value: sheet.widthIn }))}
     ${field('Length (in)', numericInput({ key: `${base}.lengthIn`, value: sheet.lengthIn }))}
     ${field('On hand', numericInput({ key: `${base}.qty`, value: sheet.qty, keypad: 'numeric' }))}
   </div><div class="row">
-    ${field('Label or note', textInput({ key: `${base}.label`, value: sheet.label, placeholder: 'Offcut from the shelf job' }))}
-    <div><button class="danger" type="button" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}">Remove sheet</button></div>
+    ${field('Label or note', textInput({ key: `${base}.label`, value: sheet.label, placeholder: 'Where this sheet came from' }))}
+    <div><button class="secondary" type="button" data-action="rotate-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}">&#8644; Swap to ${escapeHtml(sheet.lengthIn)} x ${escapeHtml(sheet.widthIn)} and repack</button></div>
+    <div><button class="danger" type="button" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}">Remove this ${escapeHtml(sheet.widthIn)} x ${escapeHtml(sheet.lengthIn)} sheet (${escapeHtml(sheet.qty)} on hand)</button></div>
   </div>
   <p class="muted">Set On hand to 0 for a sheet size you still need to buy.</p>
 </div>`;
 }
 
-function materialsPanel(project) {
-  const groups = project.materials.map((material, index) => `<div class="entry">
+function materialGroup(material, index, uiState) {
+  const sheetCount = material.sheets.length;
+  const sizeWord = sheetCount === 1 ? 'sheet size' : 'sheet sizes';
+  const groupName = material.name === '' ? 'this unnamed group' : `"${escapeHtml(material.name)}"`;
+
+  // The sheets sit inside a fieldset, with their own legend and a left rule, so
+  // that "these sizes belong to this group" is visible rather than implied by
+  // indentation that disappears at phone width.
+  return `<div class="entry">
     <div class="row">
-      ${field('Group name', textInput({ key: `materials.${index}.name`, value: material.name, placeholder: '3/4 in plywood' }))}
-      ${field('Thickness', thicknessSelect(material, index))}
-      ${field('Thickness (in)', numericInput({ key: `materials.${index}.thicknessIn`, value: material.thicknessIn }))}
+      ${field('Group name', textInput({ key: `materials.${index}.name`, value: material.name }))}
+      ${thicknessControl(material, index, uiState)}
     </div>
-    ${field('Group note', textInput({ key: `materials.${index}.note`, value: material.note, placeholder: '6 mm parts cut from this sheet' }))}
-    <h3>Sheets</h3>
-    ${material.sheets.map((sheet, sheetIndex) => sheetRow(index, sheet, sheetIndex)).join('')}
+    ${field('Group note', textInput({ key: `materials.${index}.note`, value: material.note }))}
+    <fieldset class="sheet-group">
+      <legend>Sheet sizes (${sheetCount})</legend>
+      ${material.sheets.map((sheet, sheetIndex) => sheetRow(index, sheet, sheetIndex, uiState)).join('')}
+      <button class="secondary" type="button" data-action="add-sheet" data-material="${index}">Add sheet size</button>
+    </fieldset>
     <div class="row">
-      <div><button class="secondary" type="button" data-action="add-sheet" data-material="${index}">Add sheet size</button></div>
-      <div><button class="danger" type="button" data-action="remove-material" data-material="${index}">Remove group</button></div>
+      <div><button class="danger" type="button" data-action="remove-material" data-material="${index}">Remove ${groupName} and its ${sheetCount} ${sizeWord}</button></div>
     </div>
-  </div>`).join('');
+  </div>`;
+}
+
+function materialsPanel(project, uiState) {
+  const groups = project.materials
+    .map((material, index) => materialGroup(material, index, uiState))
+    .join('');
 
   return `<details class="panel" data-panel="materials"><summary>Material groups (${project.materials.length})</summary><div class="panel-body">
     ${groups}
@@ -116,13 +164,24 @@ function materialsPanel(project) {
 }
 
 function partsPanel(project) {
-  const materialOptions = (selected) => project.materials
-    .map((material) => option(material.id, material.name, material.id === selected))
-    .join('');
+  const declared = new Set(project.materials.map((material) => material.id));
+
+  // A part can belong to no group at all: added before the first group existed,
+  // or left behind when its group was deleted. The control has to say so. Left
+  // to the plain option list the browser displays whichever group comes first,
+  // which reads as an answer nobody gave and, with a single group on the list,
+  // leaves nothing to pick to put the part right -- the project then cannot be
+  // saved and cannot be fixed either.
+  const materialOptions = (selected) => {
+    const unassigned = declared.has(selected) ? '' : option('', 'Not in a group yet', true);
+    return unassigned + project.materials
+      .map((material) => option(material.id, material.name === '' ? 'Unnamed group' : material.name, material.id === selected))
+      .join('');
+  };
 
   const rows = project.parts.map((part, index) => `<div class="entry">
     <div class="row">
-      ${field('Part name', textInput({ key: `parts.${index}.name`, value: part.name, placeholder: 'Full Base' }))}
+      ${field('Part name', textInput({ key: `parts.${index}.name`, value: part.name }))}
       ${field('Quantity', numericInput({ key: `parts.${index}.qty`, value: part.qty, keypad: 'numeric' }))}
     </div>
     <div class="row">
@@ -145,69 +204,14 @@ function partsPanel(project) {
   </div></details>`;
 }
 
-/** The whole editing surface. */
-export function renderForms(project) {
-  return metaPanel(project) + paramsPanel(project) + materialsPanel(project) + partsPanel(project);
-}
-
-function unplannedSection(plan) {
-  if (plan.unplanned.length === 0) return '';
-  const items = plan.unplanned.map((item) => `<li><strong>${escapeHtml(item.name)}</strong>`
-    + ` &times; ${escapeHtml(item.qty)}${item.note ? `. ${escapeHtml(item.note)}` : ''}</li>`).join('');
-  return `<section class="unplanned"><h2>Not planned in this version</h2>
-    <p>These are carried with the project but are not sheet goods, so nothing below lays them out. Cut them from board stock yourself.</p>
-    <ul>${items}</ul></section>`;
-}
-
-function warningsSection(plan) {
-  if (plan.warnings.length === 0) return '';
-  const items = plan.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
-  return `<section class="banner-warn"><h2>Check these before cutting</h2><ul>${items}</ul></section>`;
-}
-
-function notesSection(plan) {
-  if (!plan.notes) return '';
-  return `<section class="notes-banner"><strong>Project notes</strong>\n${escapeHtml(plan.notes)}</section>`;
-}
-
-function buyBanner(materialPlan) {
-  if (materialPlan.extraSheetsNeeded === 0) return '';
-  const { widthIn, lengthIn } = materialPlan.buySpec;
-  const sheetWord = materialPlan.extraSheetsNeeded === 1 ? 'sheet' : 'sheets';
-  return `<p class="banner-buy">Shopping list: buy ${materialPlan.extraSheetsNeeded} more ${escapeHtml(widthIn)} x ${escapeHtml(lengthIn)} ${sheetWord} of ${escapeHtml(materialPlan.name)}.</p>`;
-}
-
-function materialSection(plan, materialPlan) {
-  const noteHtml = materialPlan.note ? `<p class="muted">${escapeHtml(materialPlan.note)}</p>` : '';
-  const onHand = `<p class="muted">${escapeHtml(materialPlan.onHandSheetCount)} sheet(s) on hand, ${escapeHtml(materialPlan.sheets.length)} laid out.</p>`;
-
-  const sheets = materialPlan.sheets.map((sheetPlan) => {
-    const source = sheetPlan.source === 'to-buy' ? 'sheet to buy' : 'sheet on hand';
-    return `<article class="sheet-block">
-      <h3>${escapeHtml(sheetPlan.label)} <span class="muted">(${source})</span></h3>
-      ${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}
-    </article>`;
-  }).join('');
-
-  return `<section class="material-section">
-    <h2>${escapeHtml(materialPlan.name)}${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>
-    ${noteHtml}${buyBanner(materialPlan)}${onHand}
-    <div class="sheets">${sheets}</div>
-  </section>`;
-}
-
 /**
- * Notes first, because they carry things like the 6 mm substitution and have
- * to be read before anyone cuts. Then the diagrams, which are the primary view
- * on a phone at the saw, then the out of scope stock, then the printable list.
+ * The whole editing surface.
+ *
+ * `uiState` is app.js's map of control modes, keyed by entity id. Absent, every
+ * control falls back to the mode its numbers imply, which is exactly what a
+ * freshly loaded project should show.
  */
-export function renderResults(plan) {
-  const system = plan.displaySystem ?? 'imperial';
-  const materials = plan.materials.map((materialPlan) => materialSection(plan, materialPlan)).join('');
-  const table = plan.materials.some((materialPlan) => materialPlan.sheets.length > 0)
-    ? `<section><h2>Cut list</h2><p class="muted">Kerf ${escapeHtml(formatLength(plan.params.kerfIn, system))}, edge trim ${escapeHtml(formatLength(plan.params.edgeTrimIn, system))}. Work down the list in order.</p>
-       <div class="table-wrap">${cutListHtml(cutListRows(plan))}</div></section>`
-    : '<p class="muted">Add a material group and some parts to see a layout.</p>';
-
-  return notesSection(plan) + warningsSection(plan) + materials + unplannedSection(plan) + table;
+export function renderForms(project, uiState) {
+  return metaPanel(project) + paramsPanel(project)
+    + materialsPanel(project, uiState) + partsPanel(project);
 }

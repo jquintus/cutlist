@@ -17,9 +17,16 @@ import { labelLayout, sheetSvg } from '../src/ui/renderDiagram.js';
 const WIDE_CHAR = 0.62; // wider than the renderer's own estimate, on purpose
 const TALL_LINE = 1.1;
 
-/** Every rectangle on a sheet, paired with the text actually drawn inside it. */
+/**
+ * Every rectangle on a sheet, paired with the text actually drawn inside it.
+ *
+ * Scoped to the part groups, not to the whole tail of the SVG: the cut lines,
+ * scrap labels and edge dimensions are drawn in their own layers after the
+ * last part, and measuring those against that part's rectangle would be
+ * measuring the wrong thing.
+ */
 function drawnBlocks(svg) {
-  return svg.split('<rect class="cut-rect"').slice(1).map((block) => ({
+  return svg.split('<g class="part-block"').slice(1).map((group) => group.split('</g>')[0]).map((block) => ({
     label: block.match(/data-part="([^"]*)"/)[1],
     w: Number(block.match(/data-w="([^"]*)"/)[1]),
     h: Number(block.match(/data-h="([^"]*)"/)[1]),
