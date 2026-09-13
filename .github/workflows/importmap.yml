@@ -1,0 +1,48 @@
+# Keeps the import map in index.html in step with the module files it points at.
+#
+# GitHub Pages serves everything with cache-control: max-age=14400, and a plain
+# module graph asks for each file by a URL that never changes. A browser that
+# visited before a deploy therefore keeps running the old modules against the
+# new index.html. That shipped a dead page once: index.html lost its Print
+# button while cached modules still wired one, and the resulting TypeError
+# killed startup before any control was hooked up.
+#
+# Hashing every module URL means a changed file is a changed URL, so the two
+# halves can never disagree again. The check job is what enforces it.
+
+name: import map
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'vendor/**'
+      - 'index.html'
+      - 'tools/build-importmap.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'vendor/**'
+      - 'tools/build-importmap.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Regenerate the import map
+        run: node tools/build-importmap.mjs
+      - name: Fail if the committed map is stale
+        run: |
+          if ! git diff --exit-code -- index.html; then
+            echo "::error::index.html is stale. Run 'node tools/build-importmap.mjs' and commit the result."
+            exit 1
+          fi

@@ -11,20 +11,20 @@
 <header class="app-head">
   <div class="head-row">
     <h1 id="project-name">cutlist</h1>
-    <details class="menu">
-      <summary>Menu</summary>
-      <div class="menu-body">
-        <button id="btn-new" type="button">New</button>
-        <button id="btn-open" type="button">Open&hellip;</button>
-        <button id="btn-save" type="button">Save</button>
-        <button id="btn-save-as" type="button">Save As&hellip;</button>
+    <div class="menu">
+      <button id="btn-menu" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-body">Menu</button>
+      <div class="menu-body" id="menu-body" role="menu" hidden>
+        <button id="btn-new" type="button" role="menuitem">New</button>
+        <button id="btn-open" type="button" role="menuitem">Open&hellip;</button>
+        <button id="btn-save" type="button" role="menuitem">Save</button>
+        <button id="btn-save-as" type="button" role="menuitem">Save As&hellip;</button>
         <hr />
-        <button id="btn-share" type="button">Copy share link</button>
-        <button id="btn-export" type="button">Export JSON</button>
-        <button id="btn-import" type="button">Import JSON</button>
-        <a id="link-upload" href="https://github.com">Save to GitHub</a>
+        <button id="btn-share" type="button" role="menuitem">Copy share link</button>
+        <button id="btn-export" type="button" role="menuitem">Export JSON</button>
+        <button id="btn-import" type="button" role="menuitem">Import JSON</button>
+        <a id="link-upload" role="menuitem" href="https://github.com">Save to GitHub</a>
       </div>
-    </details>
+    </div>
   </div>
   <p class="muted">Plywood in, a guillotine cut plan out. Check every measurement before you cut.</p>
   <p id="status" class="muted"></p>
@@ -65,6 +65,37 @@
   <div id="forms"></div>
 </main>
 
-<script type="module" src="src/ui/app.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "./src/config.js": "./src/config.js?v=4cc213563da9",
+    "./src/geometry.js": "./src/geometry.js?v=2d6e8cafbd4d",
+    "./src/io/importExport.js": "./src/io/importExport.js?v=cf61ee89db7e",
+    "./src/io/projectStorage.js": "./src/io/projectStorage.js?v=db16ffe38f6b",
+    "./src/io/projects.js": "./src/io/projects.js?v=b3c001e7a931",
+    "./src/io/validate.js": "./src/io/validate.js?v=2ce8fd21144f",
+    "./src/model.js": "./src/model.js?v=4a6f6345648f",
+    "./src/packer/cutlist.js": "./src/packer/cutlist.js?v=26c53472a161",
+    "./src/packer/guillotine.js": "./src/packer/guillotine.js?v=95dbc4568bc8",
+    "./src/packer/index.js": "./src/packer/index.js?v=016e9a00362e",
+    "./src/packer/invariants.js": "./src/packer/invariants.js?v=c79320fde4c0",
+    "./src/packer/strategies.js": "./src/packer/strategies.js?v=d6cccc354d9a",
+    "./src/plan.js": "./src/plan.js?v=c400a0705906",
+    "./src/share/codec.js": "./src/share/codec.js?v=421e4f382eab",
+    "./src/share/upload.js": "./src/share/upload.js?v=adb1fa563519",
+    "./src/ui/app.js": "./src/ui/app.js?v=48636d478595",
+    "./src/ui/debounce.js": "./src/ui/debounce.js?v=488c05aa6d77",
+    "./src/ui/escape.js": "./src/ui/escape.js?v=78da46510edd",
+    "./src/ui/numericEntry.js": "./src/ui/numericEntry.js?v=b4affe235165",
+    "./src/ui/renderDiagram.js": "./src/ui/renderDiagram.js?v=b554f7396d2c",
+    "./src/ui/renderForms.js": "./src/ui/renderForms.js?v=7d1c2e547e32",
+    "./src/ui/renderResults.js": "./src/ui/renderResults.js?v=af1d03b304f9",
+    "./src/ui/renderTable.js": "./src/ui/renderTable.js?v=2d950855ffd6",
+    "./src/units.js": "./src/units.js?v=3c6a6d48f16f",
+    "./vendor/pako.esm.min.mjs": "./vendor/pako.esm.min.mjs?v=6e4f36b9dbe5"
+  }
+}
+</script>
+<script type="module" src="src/ui/app.js?v=48636d478595"></script>
 </body>
 </html>

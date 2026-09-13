@@ -38,11 +38,12 @@ header.app-head {
 .head-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
 .head-row h1 { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 
-details.menu { flex: 0 0 auto; position: relative; }
+.menu { flex: 0 0 auto; position: relative; }
 
-details.menu > summary {
-  list-style: none;
-  cursor: pointer;
+/* The menu is a button and a panel, not a disclosure widget. A <details> reads
+   to a screen reader as an expandable section of the document and does not
+   close when you click elsewhere, which is not how a menu behaves. */
+.menu > button {
   min-height: var(--tap);
   display: flex;
   align-items: center;
@@ -50,9 +51,12 @@ details.menu > summary {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
 }
 
-details.menu > summary::-webkit-details-marker { display: none; }
+.menu > button[aria-expanded="true"] { border-color: var(--ink); }
 
 .menu-body {
   position: absolute;
@@ -71,14 +75,25 @@ details.menu > summary::-webkit-details-marker { display: none; }
 
 .menu-body hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 
-.menu-body a {
+.menu-body a,
+.menu-body button {
   display: flex;
   align-items: center;
+  width: 100%;
   min-height: var(--tap);
   padding: 8px 10px;
+  border: 0;
   border-radius: 8px;
+  background: none;
   color: var(--ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
 }
+
+.menu-body a:hover,
+.menu-body button:hover { background: var(--hover, rgba(0,0,0,.06)); }
 
 dialog {
   width: min(28rem, 92vw);

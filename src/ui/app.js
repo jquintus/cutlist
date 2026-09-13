@@ -615,6 +615,37 @@ el.forms.addEventListener('click', (event) => {
 });
 
 const shareButton = document.getElementById('btn-share');
+// The menu is a button and a panel, so opening and closing it is ours to run.
+// A menu that stays open when you click the page behaves like a stuck drawer,
+// so a click anywhere else and the Escape key both close it, and focus goes
+// back to the button so the keyboard does not get stranded in a hidden panel.
+const menuButton = document.getElementById('btn-menu');
+const menuBody = document.getElementById('menu-body');
+
+function setMenuOpen(open) {
+  menuBody.hidden = !open;
+  menuButton.setAttribute('aria-expanded', String(open));
+}
+
+menuButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  setMenuOpen(menuBody.hidden);
+});
+
+// Any activation inside the menu finishes the interaction, including the
+// Save to GitHub link, which the reader may be opening in a new tab.
+menuBody.addEventListener('click', () => setMenuOpen(false));
+
+document.addEventListener('click', (event) => {
+  if (!menuBody.hidden && !menuBody.contains(event.target)) setMenuOpen(false);
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || menuBody.hidden) return;
+  setMenuOpen(false);
+  menuButton.focus();
+});
+
 shareButton.addEventListener('click', () => copyShareLink(shareButton));
 
 document.getElementById('btn-new').addEventListener('click', () => loadProject(newProject(), null));

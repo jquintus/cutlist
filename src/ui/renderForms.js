@@ -157,7 +157,7 @@ function materialsPanel(project, uiState) {
     .map((material, index) => materialGroup(material, index, uiState))
     .join('');
 
-  return `<details class="panel" data-panel="materials"><summary>Material groups (${project.materials.length})</summary><div class="panel-body">
+  return `<details class="panel" data-panel="materials" open><summary>Material groups (${project.materials.length})</summary><div class="panel-body">
     ${groups}
     <button class="secondary" type="button" data-action="add-material">Add material group</button>
   </div></details>`;
@@ -197,7 +197,7 @@ function partsPanel(project) {
     </div>
   </div>`).join('');
 
-  return `<details class="panel" data-panel="parts"><summary>Parts (${project.parts.length})</summary><div class="panel-body">
+  return `<details class="panel" data-panel="parts" open><summary>Parts (${project.parts.length})</summary><div class="panel-body">
     ${rows}
     <button class="secondary" type="button" data-action="add-part">Add part</button>
     <p class="muted">A grain locked part is never turned 90 degrees. Leave it off unless the grain direction matters.</p>
