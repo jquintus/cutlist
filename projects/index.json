@@ -30,6 +30,16 @@
       "materialCount": 3,
       "partCount": 10,
       "unplannedCount": 2
+    },
+    {
+      "file": "storage.json",
+      "slug": "storage",
+      "name": "Storage",
+      "date": "2026-09-13",
+      "notes": "Sheets that I have kicking around the shop",
+      "materialCount": 2,
+      "partCount": 0,
+      "unplannedCount": 0
     }
   ]
 }
