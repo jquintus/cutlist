@@ -7,6 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { formatLength } from '../src/units.js';
 import { readFile, readdir } from 'node:fs/promises';
 import { validateProject } from '../src/io/validate.js';
 import { planProject } from '../src/plan.js';
@@ -109,8 +110,13 @@ test('a part carries its width across and its length down', async () => {
       const dims = [...svg.matchAll(/<text class="edge-dim"([^>]*)>([^<]*)<\/text>/g)];
       const flat = dims.filter((match) => !match[1].includes('rotate')).map((match) => match[2]);
       const turned = dims.filter((match) => match[1].includes('rotate')).map((match) => match[2]);
-      assert.ok(flat.includes('14 in'), 'the 14 in edge is not written across');
-      assert.ok(turned.includes('12 3/4 in'), 'the 12 3/4 in edge is not written down');
+      // Read the expected edges off the placement. The seed project is the
+      // user's own file and its dimensions change when he edits it; what must
+      // hold is that the width is written across and the length down.
+      const across = formatLength(mini.w, 'imperial');
+      const down = formatLength(mini.h, 'imperial');
+      assert.ok(flat.includes(across), `the ${across} edge is not written across`);
+      assert.ok(turned.includes(down), `the ${down} edge is not written down`);
       return;
     }
   }

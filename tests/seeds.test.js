@@ -33,15 +33,19 @@ for (const file of SEEDS) {
     assert.deepEqual(validatePlan(plan), []);
   });
 
-  test(`${file} stocks exactly one 48 x 96 sheet each of 1/4 in and 1/2 in`, async () => {
+  // The orientation and the exact size are the user's to change from the app,
+  // so this pins the part that matters: both thicknesses he owns are stocked
+  // with one full sheet, whichever way round it is entered.
+  test(`${file} stocks one full sheet each of 1/4 in and 1/2 in`, async () => {
     const project = await loadSeed(file);
     for (const fragment of ['1/2 in', '1/4 in']) {
       const material = project.materials.find((m) => m.name.includes(fragment));
       assert.ok(material, `no ${fragment} group`);
       assert.equal(material.sheets.length, 1);
-      assert.equal(material.sheets[0].widthIn, 48);
-      assert.equal(material.sheets[0].lengthIn, 96);
-      assert.equal(material.sheets[0].qty, 1);
+      const [sheet] = material.sheets;
+      const sides = [sheet.widthIn, sheet.lengthIn].sort((a, b) => a - b);
+      assert.deepEqual(sides, [48, 96], `${fragment} is not a full sheet`);
+      assert.equal(sheet.qty, 1);
     }
   });
 

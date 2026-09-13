@@ -5,6 +5,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { formatLength } from '../src/units.js';
 import { readFile } from 'node:fs/promises';
 import { validateProject } from '../src/io/validate.js';
 import { planProject } from '../src/plan.js';
@@ -71,7 +72,12 @@ test('a part row carries its name and one size, and nothing else', async () => {
     .flatMap((sheet) => sheet.placements)
     .find((candidate) => candidate.name === 'Mini Base');
   assert.ok(placement, 'the fixture must contain a Mini Base');
-  assert.ok(html.includes(`<strong>${placement.label}</strong> - Mini Base - 14 in x 12 3/4 in`));
+  // Derived from the placement, not hardcoded: the seed file is a real project
+  // the user edits from the app, so pinning its dimensions here turns one of
+  // his edits into a red build.
+  const size = `${formatLength(placement.w, 'imperial')} x ${formatLength(placement.h, 'imperial')}`;
+  assert.ok(html.includes(`<strong>${placement.label}</strong> - Mini Base - ${size}`),
+    `part row missing "${size}"`);
 });
 
 test('each sheet states its leftovers exactly once', async () => {
