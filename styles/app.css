@@ -35,6 +35,13 @@
 
 * { box-sizing: border-box; }
 
+/* The user agent hides [hidden] with an attribute selector, which loses to any
+   class rule that sets display. That is not a corner case here: it left the
+   menu permanently on screen while its hidden property toggled correctly
+   underneath, so the code and the tests both looked right. One rule, stated
+   once, so no future display declaration can quietly un-hide something. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -106,6 +113,8 @@ textarea { width: 100%; resize: vertical; }
   right: 0;
   z-index: 30;
   min-width: 14rem;
+  /* Never wider than the screen it drops onto, whatever the min-width asks for. */
+  max-width: calc(100vw - 40px);
   display: flex;
   flex-direction: column;
   padding: 6px;
