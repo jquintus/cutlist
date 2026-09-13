@@ -294,7 +294,7 @@ el.results.addEventListener('click', (event) => {
 
   const repack = event.target.closest?.('[data-action="rotate-sheet"]');
   if (repack) {
-    update((draft) => ACTIONS['rotate-sheet'](draft, { material: repack.dataset.material, sheet: repack.dataset.sheetIndex }));
+    update((draft) => ACTIONS['rotate-sheet'](draft, { material: repack.dataset.material, spec: repack.dataset.spec }));
     return;
   }
 
@@ -473,7 +473,13 @@ const ACTIONS = {
   // The view-only rotate is a different control entirely and touches nothing
   // here.
   'rotate-sheet': (draft, dataset) => {
-    const sheet = draft.materials[Number(dataset.material)].sheets[Number(dataset.sheet)];
+    // Addressed by the spec's own id, not by position. A material with one
+    // sheet size at a quantity of two lays out two sheets, so the index of a
+    // drawn sheet is not the index of the size it came from, and repacking the
+    // second one reached past the end of the list.
+    const material = draft.materials[Number(dataset.material)];
+    const sheet = material?.sheets.find((candidate) => candidate.id === dataset.spec);
+    if (sheet === undefined) return;
     resizeSheet(sheet, () => {
       [sheet.widthIn, sheet.lengthIn] = [sheet.lengthIn, sheet.widthIn];
     });

@@ -14,7 +14,7 @@
  */
 
 import { formatLength } from '../units.js';
-import { sheetKey, sourceLabel } from '../ui/renderTable.js';
+import { sourceLabel } from '../ui/renderTable.js';
 
 const PAGE = { w: 612, h: 792 };        // US Letter, portrait, in points
 const MARGIN = 36;                       // half an inch
@@ -85,8 +85,7 @@ function page() {
 }
 
 /** The sheet diagram, scaled into a box, in the same monochrome as print. */
-function drawSheet(pg, sheetPlan, left, top, maxW, maxH, system) {
-  const scale = Math.min(maxW / sheetPlan.widthIn, maxH / sheetPlan.lengthIn);
+function drawSheetAt(pg, sheetPlan, left, top, scale, system) {
   const w = sheetPlan.widthIn * scale;
   const h = sheetPlan.lengthIn * scale;
 
@@ -106,7 +105,9 @@ function drawSheet(pg, sheetPlan, left, top, maxW, maxH, system) {
     }
   }
 
-  // Cut lines, dashed, each carrying its step number and measurement.
+  // Cut lines, dashed, each carrying its measurement. No step number: the
+  // screen dropped it for reading as a second number competing with the one
+  // that matters, and paper has the same problem.
   for (const step of sheetPlan.cuts) {
     const across = step.axis === 'v';
     const x1 = left + (across ? step.lineIn : step.fromIn) * scale;
@@ -115,7 +116,7 @@ function drawSheet(pg, sheetPlan, left, top, maxW, maxH, system) {
     const y2 = top + (across ? step.toIn : step.lineIn) * scale;
     pg.line(x1, y1, x2, y2, { gray: 0, width: 0.7, dash: '3 2' });
 
-    const tag = `${step.seq}. ${formatLength(step.atIn, system)}`;
+    const tag = formatLength(step.atIn, system);
     const tw = textWidth(tag, FONT.small);
     let tx = across ? x1 + 2 : x1 + 2;
     let ty = across ? y1 + 2 : y1 - FONT.small - 1;
@@ -137,11 +138,27 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
   const system = plan.displaySystem ?? 'imperial';
   const pages = [];
 
-  if (plan.shoppingList.length > 0) {
-    const pg = page();
-    let top = MARGIN;
+  // Everything flows down a page and breaks only when the next block will not
+  // fit. A page per sheet left two thirds of most of them white, which for a
+  // plan you print and tape to a wall is just paper.
+  const widest = plan.widestSheetIn || 48;
+  let pg = null;
+  let top = MARGIN;
+
+  const startPage = () => {
+    pg = page();
+    top = MARGIN;
     pg.text(title, MARGIN, top, { size: FONT.head, bold: true });
-    top += FONT.head + 8;
+    top += FONT.head + 10;
+    pages.push(pg);
+  };
+
+  const room = (height) => {
+    if (pg === null || top + height > PAGE.h - MARGIN) startPage();
+  };
+
+  if (plan.shoppingList.length > 0) {
+    room(FONT.sub + 10 + plan.shoppingList.length * (LINE + 2));
     pg.text('Shopping list', MARGIN, top, { size: FONT.sub, bold: true });
     top += FONT.sub + 6;
 
@@ -155,77 +172,85 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
       );
       top += LINE + 2;
     }
+    top += 8;
+  }
 
-    if (plan.notes) {
-      top += 8;
-      pg.text('Notes', MARGIN, top, { size: FONT.sub, bold: true });
-      top += FONT.sub + 4;
-      for (const paragraph of String(plan.notes).split('\n')) {
-        for (const row of wrap(paragraph, BODY, FONT.body)) {
-          pg.text(row, MARGIN, top, { gray: 0.25 });
-          top += LINE;
-        }
-      }
+  if (plan.notes) {
+    const rows = String(plan.notes).split('\n').flatMap((line) => wrap(line, BODY, FONT.small));
+    room(FONT.sub + 8 + rows.length * (FONT.small + 2));
+    pg.text('Notes', MARGIN, top, { size: FONT.sub, bold: true });
+    top += FONT.sub + 4;
+    for (const row of rows) {
+      pg.text(row, MARGIN, top, { size: FONT.small, gray: 0.25 });
+      top += FONT.small + 2;
     }
-    pages.push(pg);
+    top += 10;
   }
 
   for (const materialPlan of plan.materials) {
-    for (const [index, sheetPlan] of materialPlan.sheets.entries()) {
-      const pg = page();
-      let top = MARGIN;
-
+    for (const sheetPlan of materialPlan.sheets) {
       const thickness = materialPlan.thicknessLabel ? ` (${materialPlan.thicknessLabel})` : '';
-      pg.text(`${materialPlan.name}${thickness}`, MARGIN, top, { size: FONT.head, bold: true });
-      pg.textRight(title, PAGE.w - MARGIN, top + 3, { size: FONT.small, gray: 0.4 });
-      top += FONT.head + 4;
-      pg.text(`${sheetPlan.label} (${sourceLabel(sheetPlan.source)})`, MARGIN, top, { size: FONT.sub });
-      top += FONT.sub + 10;
 
-      const diagramW = BODY * 0.58;
-      const drawn = drawSheet(pg, sheetPlan, MARGIN, top, diagramW, 430, system);
+      // Every diagram at the same inches per point, measured against the widest
+      // sheet in the project, so a 24 in panel is visibly half a 48 in one and
+      // 25 in is the same length of line on every picture.
+      const fullW = BODY * 0.56;
+      const perInch = fullW / widest;
+      const drawW = sheetPlan.widthIn * perInch;
+      const drawH = sheetPlan.lengthIn * perInch;
 
-      // Cuts and parts in the column beside the picture, which is what makes a
-      // sheet fit one page instead of running onto the next.
-      const colX = MARGIN + diagramW + 18;
-      const colW = PAGE.w - MARGIN - colX;
+      const rows = sheetPlan.cuts.length + sheetPlan.placements.length * 2;
+      const columnH = FONT.small * 2 + 20 + rows * LINE;
+      const blockH = FONT.sub + 8 + Math.max(drawH, columnH) + 18;
+
+      room(blockH);
+
+      pg.text(`${materialPlan.name}${thickness} \u2014 ${sheetPlan.label} (${sourceLabel(sheetPlan.source)})`
+        .replace('\u2014', '-'), MARGIN, top, { size: FONT.sub, bold: true });
+      top += FONT.sub + 8;
+
+      drawSheetAt(pg, sheetPlan, MARGIN, top, perInch, system);
+
+      const colX = MARGIN + fullW + 18;
       let colTop = top;
 
       pg.text('CUTS', colX, colTop, { size: FONT.small, bold: true, gray: 0.35 });
       colTop += FONT.small + 5;
       for (const step of sheetPlan.cuts) {
         pg.text(`${step.seq}.`, colX, colTop, { size: FONT.small, gray: 0.4 });
-        pg.text(formatLength(step.atIn, system), colX + 15, colTop, { bold: true });
-        pg.text(`from ${step.referenceEdge}`, colX + 15 + textWidth(formatLength(step.atIn, system), FONT.body) + 5, colTop, { size: FONT.small, gray: 0.35 });
+        const at = formatLength(step.atIn, system);
+        pg.text(at, colX + 15, colTop, { bold: true });
+        pg.text(`from ${step.referenceEdge}`, colX + 15 + textWidth(at, FONT.body) + 5, colTop, { size: FONT.small, gray: 0.35 });
         colTop += LINE;
       }
 
-      colTop += 8;
-      pg.text('PARTS OFF THIS SHEET', colX, colTop, { size: FONT.small, bold: true, gray: 0.35 });
+      colTop += 6;
+      pg.text('PARTS', colX, colTop, { size: FONT.small, bold: true, gray: 0.35 });
       colTop += FONT.small + 5;
       for (const placement of sheetPlan.placements) {
         pg.checkbox(colX, colTop);
         pg.text(placement.label, colX + 12, colTop, { bold: true, size: FONT.small });
         pg.text(placement.name, colX + 12 + textWidth(placement.label, FONT.small) + 4, colTop, { size: FONT.small });
+        colTop += LINE - 2;
+        pg.text(`${formatLength(placement.w, system)} x ${formatLength(placement.h, system)}`,
+          colX + 12, colTop, { size: FONT.small, gray: 0.4 });
         colTop += LINE - 1;
-        pg.text(
-          `${formatLength(placement.w, system)} x ${formatLength(placement.h, system)}`,
-          colX + 12, colTop, { size: FONT.small, gray: 0.4 },
-        );
-        colTop += LINE;
       }
 
-      const below = Math.max(top + drawn, colTop) + 14;
+      let bottom = Math.max(top + drawH, colTop);
       if ((sheetPlan.offcuts ?? []).length > 0) {
+        bottom += 4;
         const text = 'Left over: ' + sheetPlan.offcuts
           .map((offcut) => `${formatLength(offcut.w, system)} x ${formatLength(offcut.h, system)}`)
           .join(', ');
         for (const row of wrap(text, BODY, FONT.small)) {
-          pg.text(row, MARGIN, below, { size: FONT.small, gray: 0.4 });
+          pg.text(row, MARGIN, bottom, { size: FONT.small, gray: 0.4 });
+          bottom += FONT.small + 2;
         }
       }
 
-      pages.push(pg);
+      top = bottom + 16;
+      pg.line(MARGIN, top - 8, PAGE.w - MARGIN, top - 8, { gray: 0.75, width: 0.4 });
     }
   }
 

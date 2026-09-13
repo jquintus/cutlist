@@ -83,6 +83,13 @@ export function planProject(project) {
     notes: project.notes,
     displaySystem: project.displaySystem,
     params: project.params,
+    // The widest sheet in the project. Every diagram is drawn to the same
+    // inches per pixel against it, so 25 in is the same length of line on every
+    // picture: two sheets at different scales made comparing them a trap.
+    widestSheetIn: Math.max(
+      1,
+      ...materials.flatMap((materialPlan) => materialPlan.sheets.map((sheet) => sheet.widthIn)),
+    ),
     materials,
     shoppingList,
     // Out of scope stock passes straight through. The packer is never handed

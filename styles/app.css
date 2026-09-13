@@ -616,3 +616,34 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .sheet-view.has-selection .cut-step-no.is-active { opacity: 1; }
 .sheet-view.has-selection .cut-line { stroke-opacity: .25; }
 .sheet-view.has-selection .cut-line.is-active { stroke-opacity: 1; }
+
+/* The input column stays in view while the plan scrolls past it.
+ *
+ * On a project with three sheets the left side ran out long before the right
+ * did, so by the third sheet there were no parts on screen and no way to see
+ * what changing one did. Only this column is capped and scrollable; the page
+ * itself is still driven by the plan, which is what keeps the wheel working
+ * everywhere. Capping both was the earlier mistake: it left the document
+ * shorter than its own content and scrolling died halfway down. */
+@media (min-width: 62rem) {
+  .inputs {
+    position: sticky;
+    top: 14px;
+    align-self: start;
+    max-height: calc(100vh - 28px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+  }
+}
+
+.grain-lock {
+  margin-left: 4px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: .72em;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}

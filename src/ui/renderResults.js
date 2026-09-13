@@ -73,6 +73,21 @@ function stepLink(entry, view, label) {
   return `<a class="sheet-step" href="${escapeHtml(href)}" title="${escapeHtml(entry.sheetPlan.label)}">${escapeHtml(label)}</a>`;
 }
 
+/**
+ * How wide this sheet is drawn, as a share of the column.
+ *
+ * Every diagram uses the same inches per pixel, measured against the widest
+ * sheet in the project, so a 24 in panel is visibly half a 48 in one. Drawn at
+ * full width each, a small offcut and a full sheet came out the same size on
+ * screen and 25 in was a different length of line on every picture.
+ */
+function sheetScalePercent(sheetPlan, plan, isRotated) {
+  const widest = plan.widestSheetIn || sheetPlan.widthIn;
+  // A turned picture presents its length across, so that is the edge to measure.
+  const across = isRotated ? sheetPlan.lengthIn : sheetPlan.widthIn;
+  return Math.max(12, Math.min(100, (across / widest) * 100)).toFixed(2);
+}
+
 /** One sheet: its picture, the cuts that make it, and the parts it yields. */
 function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
   const key = sheetKey(materialPlan, sheetPlan, index);
@@ -95,12 +110,12 @@ function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
       title="Open this sheet on its own, for the phone at the saw"
       >${escapeHtml(sheetPlan.label)}</a> <span class="muted">(${sourceLabel(sheetPlan.source)})</span></h3>
     <div class="sheet-grid">
-      <div class="sheet-figure">
+      <div class="sheet-figure" style="width:${sheetScalePercent(sheetPlan, plan, isRotated)}%">
         <div class="sheet-view${turned}"${isRotated ? ` style="--sheet-ratio:${sheetPlan.widthIn / sheetPlan.lengthIn};--turned-ratio:${sheetPlan.lengthIn} / ${sheetPlan.widthIn}"` : ''}>${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
         ${rotatedNotice}
         <div class="figure-tools no-print">
           <button type="button" data-action="rotate-view" data-sheet="${escapeHtml(key)}" title="Turn the picture only. The cuts do not change.">&#8635; Turn picture</button>
-          <button type="button" data-action="rotate-sheet" data-material="${materialPlan.materialIndex}" data-sheet-index="${index}" title="Lay the sheet the other way and work out the cuts again.">&#8644; Repack ${escapeHtml(sheetPlan.lengthIn)} x ${escapeHtml(sheetPlan.widthIn)}</button>
+          <button type="button" data-action="rotate-sheet" data-material="${materialPlan.materialIndex}" data-spec="${escapeHtml(sheetPlan.sheetSpecId ?? '')}" title="Lay the sheet the other way and work out the cuts again.">&#8644; Repack ${escapeHtml(sheetPlan.lengthIn)} x ${escapeHtml(sheetPlan.widthIn)}</button>
         </div>
       </div>
       <div class="sheet-steps">${sheetCutListHtml(sheetPlan, materialPlan, system, index, view.ticked ?? new Set())}</div>
