@@ -2,6 +2,16 @@
   "schemaVersion": 1,
   "projects": [
     {
+      "file": "demo-omnisled-full-size.json",
+      "slug": "demo-omnisled-full-size",
+      "name": "OmniSled Full Size",
+      "date": "2026-09-12",
+      "notes": "Stock on hand is exactly one 48 x 96 sheet of 1/4 in plywood and one 48 x 96 sheet of 1/2 in plywood.\nThe 6 mm parts come off the 1/4 in sheet. There is no 3/4 in plywood on hand, so the fence parts land on the shopping list on purpose.\nThe packer is a heuristic. Check every measurement against your own stock before you cut anything.",
+      "materialCount": 3,
+      "partCount": 5,
+      "unplannedCount": 1
+    },
+    {
       "file": "omnisled-both.json",
       "slug": "omnisled-both",
       "name": "OmniSled Full Size and Mini",
@@ -10,16 +20,6 @@
       "materialCount": 3,
       "partCount": 10,
       "unplannedCount": 2
-    },
-    {
-      "file": "omnisled-full-size.json",
-      "slug": "omnisled-full-size",
-      "name": "OmniSled Full Size",
-      "date": "2026-09-12",
-      "notes": "Stock on hand is exactly one 48 x 96 sheet of 1/4 in plywood and one 48 x 96 sheet of 1/2 in plywood.\nThe 6 mm parts come off the 1/4 in sheet. There is no 3/4 in plywood on hand, so the fence parts land on the shopping list on purpose.\nThe packer is a heuristic. Check every measurement against your own stock before you cut anything.",
-      "materialCount": 3,
-      "partCount": 5,
-      "unplannedCount": 1
     },
     {
       "file": "omnisled-mini.json",
