@@ -45,9 +45,12 @@ test('one numbered cut line per cut step, keyed to its own sheet', async () => {
     sheetPlan.cuts.map((step) => step.seq),
   );
   assert.ok(lines.every((match) => match[2] === key), 'a cut line is keyed to the wrong sheet');
+  // The label on a line is its step number and the measurement that step cuts
+  // at. Where the saw goes cannot be read anywhere else on the picture, so it
+  // rides with the number rather than living only in the list beside it.
   assert.deepEqual(
     textsOf(svg, 'cut-step-no'),
-    sheetPlan.cuts.map((step) => String(step.seq)),
+    sheetPlan.cuts.map((step) => `${step.seq}. ${formatLength(step.atIn, 'imperial')}`),
   );
 });
 
@@ -100,27 +103,30 @@ test('a 3 1/2 x 5 1/2 part takes no edge label but is still on the checklist', a
   assert.ok(svg.includes(`data-part="${small.label}"`));
 });
 
-test('a part carries its width across and its length down', async () => {
+// A part shows its name and nothing else. Its measurements are on the parts
+// list beside the diagram; written along the edges of a filled rectangle they
+// were unreadable, and they answered a question that was never the hard one.
+test('a part carries its name, not its measurements', async () => {
   const plan = await bothPlan();
   for (const materialPlan of plan.materials) {
     for (const sheetPlan of materialPlan.sheets) {
       const mini = sheetPlan.placements.find((placement) => placement.name === 'Mini Base');
       if (!mini) continue;
       const svg = sheetSvg(sheetPlan, materialPlan, plan.params);
-      const dims = [...svg.matchAll(/<text class="edge-dim"([^>]*)>([^<]*)<\/text>/g)];
-      const flat = dims.filter((match) => !match[1].includes('rotate')).map((match) => match[2]);
-      const turned = dims.filter((match) => match[1].includes('rotate')).map((match) => match[2]);
-      // Read the expected edges off the placement. The seed project is the
-      // user's own file and its dimensions change when he edits it; what must
-      // hold is that the width is written across and the length down.
+      // The name is wrapped across as many <text> lines as it needs, so look
+      // for the words rather than the phrase.
+      const words = textsOf(svg, 'cut-label').join(' ');
+      assert.ok(words.includes('Mini') && words.includes('Base'), 'the part is not named on the diagram');
+      assert.ok(!svg.includes('class="edge-dim"'), 'edge dimensions are back on the parts');
       const across = formatLength(mini.w, 'imperial');
-      const down = formatLength(mini.h, 'imperial');
-      assert.ok(flat.includes(across), `the ${across} edge is not written across`);
-      assert.ok(turned.includes(down), `the ${down} edge is not written down`);
+      assert.ok(
+        !new RegExp(`class="cut-dims"[^>]*>${across}<`).test(svg),
+        'a part is still carrying its own measurement',
+      );
       return;
     }
   }
-  assert.fail('no Mini Base was laid out');
+  assert.fail('no Mini Base placement found');
 });
 
 test('the diagram no longer writes a dimension line through the middle of a part', async () => {

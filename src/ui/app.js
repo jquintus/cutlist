@@ -382,7 +382,9 @@ const ACTIONS = {
       thicknessIn: 0.75,
       thicknessLabel: '3/4 in',
       note: '',
-      sheets: [{ id: `${materialId}s1`, label: '48 x 96', widthIn: 48, lengthIn: 96, qty: 1, note: '' }],
+      // Empty note, same as add-sheet: sheetLabel() falls back to the sheet's
+      // own dimensions for the heading, so nothing is lost by not inventing it.
+      sheets: [{ id: `${materialId}s1`, label: '', widthIn: 48, lengthIn: 96, qty: 1, note: '' }],
     });
   },
   'remove-material': (draft, dataset) => {
@@ -392,7 +394,10 @@ const ACTIONS = {
     const material = draft.materials[Number(dataset.material)];
     material.sheets.push({
       id: mintId(`${material.id}s`, material.sheets.length + 1),
-      label: '48 x 96',
+      // The note is the person's own, for things like where a sheet came from.
+      // Seeding it with the size is content nobody typed, and the size is
+      // already in the two columns beside it.
+      label: '',
       widthIn: 48,
       lengthIn: 96,
       qty: 1,

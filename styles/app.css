@@ -361,9 +361,20 @@ textarea { width: 100%; resize: vertical; }
  * ten inches tall, which is exactly what it did. The renderer sizes its own
  * text and strokes in sheet units, scaled to the sheet. Color and weight only. */
 .cut-line { fill: none; stroke: #8a949d; stroke-dasharray: 5 4; }
-.cut-step-no { fill: var(--ink-soft); font-weight: 700; }
+/* A cut label must be readable wherever the line happens to run: over a
+   saturated part fill, over white offcut, or straddling the two. The halo is
+   what makes one rule work in all three places, and it is drawn behind the
+   glyphs so it never thickens them. */
+.cut-step-no {
+  fill: var(--ink);
+  font-weight: 700;
+  paint-order: stroke fill;
+  stroke: var(--paper);
+  stroke-width: 0.6px;
+  stroke-linejoin: round;
+}
 .cut-line.is-active { stroke: #c0392b; stroke-dasharray: none; }
-.cut-step-no.is-active { fill: #c0392b; }
+.cut-step-no.is-active { fill: #c0392b; stroke: #fff; }
 .cut-label { fill: #fff; font-weight: 700; }
 .cut-dims, .edge-dim, .scrap-label { fill: var(--ink-soft); }
 .sheet-edge { fill: none; stroke: var(--ink); }

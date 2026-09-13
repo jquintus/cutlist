@@ -190,13 +190,17 @@ function overlaps(a, b) {
  * measurement is taken from rather than at its midpoint: an edge dimension is
  * centered on its own edge, and a cut line very often runs exactly along one.
  */
-function stepNumberMarks(sheetPlan, scale) {
+function stepNumberMarks(sheetPlan, scale, system) {
   const size = Math.max(0.6, scale / 28);
   return sheetPlan.cuts.map((step) => {
     const acrossX = step.axis === 'v';
     const x = acrossX ? step.lineIn + size * 0.7 : step.fromIn + size;
     const y = acrossX ? step.fromIn + size : step.lineIn - size * 0.5;
-    const text = String(step.seq);
+    // The measurement rides with the step number, on the line it belongs to.
+    // A part's own dimensions are already on the parts list; what cannot be
+    // read anywhere else is where the saw goes, and that is a property of the
+    // line, not of the box beside it.
+    const text = `${step.seq}. ${formatLength(step.atIn, system)}`;
     const width = textWidth(text, size) + 2 * size * MARK_PAD;
     return {
       step,
@@ -303,47 +307,7 @@ function scrapLabelsSvg(sheetPlan, system, maxLabelSize) {
   return `  <g class="scrap-labels">\n${labels.join('\n')}\n  </g>\n`;
 }
 
-/**
- * Which of a part's two measurements it has room to carry on its own edges.
- *
- * A dimension on the edge it belongs to is read the way a tape is held, which
- * is the whole reason these left the middle of the rectangle. Two conditions
- * have to hold: the text fits along that edge, and the part is wide enough
- * across that edge for the dimension and the part's name not to be sitting on
- * each other. A part too small for that silently gets none -- its size is in
- * the PARTS checklist, and a measurement written through a part's own name is
- * worse than no measurement at all.
- */
-function edgeDimsFor(placement, system, size) {
-  const across = formatLength(placement.w, system);
-  const down = formatLength(placement.h, system);
-  return {
-    across: textWidth(across, size) <= placement.w * FILL && placement.h >= size * EDGE_ROOM
-      ? across : '',
-    down: textWidth(down, size) <= placement.h * FILL && placement.w >= size * EDGE_ROOM
-      ? down : '',
-  };
-}
 
-/** The two edge dimensions for one part, drawn along the edges they measure. */
-function edgeDimSvg(placement, dims, size) {
-  const elements = [];
-  const cx = placement.x + placement.w / 2;
-  const cy = placement.y + placement.h / 2;
-
-  if (dims.across !== '') {
-    elements.push(`    <text class="edge-dim" x="${coordStr(cx)}"`
-      + ` y="${coordStr(placement.y + placement.h - size * 0.4)}" font-size="${coordStr(size)}"`
-      + ` text-anchor="middle">${escapeHtml(dims.across)}</text>`);
-  }
-  if (dims.down !== '') {
-    const x = placement.x + size * 0.9;
-    elements.push(`    <text class="edge-dim" x="${coordStr(x)}" y="${coordStr(cy)}"`
-      + ` font-size="${coordStr(size)}" text-anchor="middle"`
-      + ` transform="rotate(-90 ${coordStr(x)} ${coordStr(cy)})">${escapeHtml(dims.down)}</text>`);
-  }
-  return elements;
-}
 
 /**
  * One sheet as a to-scale SVG, in explicit layers.
@@ -368,26 +332,18 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
   const stroke = Math.max(0.05, scale / 400);
   const key = sheetKey(materialPlan, sheetPlan, materialPlan.sheets.indexOf(sheetPlan));
 
-  const edgeSize = maxLabelSize * DIM_RATIO;
-  const gutter = edgeSize * EDGE_GUTTER;
-  const edgeDims = [];
-
   const colors = colorsForSheet(sheetPlan.placements);
-  const marks = stepNumberMarks(sheetPlan, scale);
+  const marks = stepNumberMarks(sheetPlan, scale, system);
   const blocks = sheetPlan.placements.map((placement) => {
-    // No dimension line in the middle any more: the measurements are written
-    // along the edges they measure, in their own layer below. The centered
-    // name is laid out inside a box shrunk by the gutter those edges take, so
-    // the two can never end up written over each other. That shrink is
-    // symmetric; the step number clearance after it is one sided, and the
-    // block centers on whatever box is left.
-    const dims = edgeDimsFor(placement, system, edgeSize);
-    edgeDims.push(...edgeDimSvg(placement, dims, edgeSize));
+    // A part carries its name and nothing else. Its size is on the parts list
+    // beside the diagram, and writing it along the edges put faint text over a
+    // saturated fill where it could not be read. The whole rectangle is
+    // available to the name now, minus whatever the cut labels sit on.
     const box = clearOfMarks({
-      x: placement.x + (dims.down === '' ? 0 : gutter),
-      y: placement.y + (dims.across === '' ? 0 : gutter),
-      w: placement.w - (dims.down === '' ? 0 : 2 * gutter),
-      h: placement.h - (dims.across === '' ? 0 : 2 * gutter),
+      x: placement.x,
+      y: placement.y,
+      w: placement.w,
+      h: placement.h,
     }, marks);
     const layout = labelLayout({
       label: placement.label,
@@ -427,7 +383,6 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
     `\n`,
     cutLinesSvg(marks, key, scale),
     scrapLabelsSvg(sheetPlan, system, maxLabelSize),
-    edgeDims.length === 0 ? '' : `  <g class="edge-dims">\n${edgeDims.join('\n')}\n  </g>\n`,
     `</svg>`,
   ].join('');
 }
