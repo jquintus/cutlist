@@ -45,12 +45,13 @@ test('one numbered cut line per cut step, keyed to its own sheet', async () => {
     sheetPlan.cuts.map((step) => step.seq),
   );
   assert.ok(lines.every((match) => match[2] === key), 'a cut line is keyed to the wrong sheet');
-  // The label on a line is its step number and the measurement that step cuts
-  // at. Where the saw goes cannot be read anywhere else on the picture, so it
-  // rides with the number rather than living only in the list beside it.
+  // A line is labeled with the measurement it cuts at, and nothing else. The
+  // step number was on here too and read as a second number competing with the
+  // one that matters; the order is visible in the picture and written out in
+  // the CUTS list beside it.
   assert.deepEqual(
     textsOf(svg, 'cut-step-no'),
-    sheetPlan.cuts.map((step) => `${step.seq}. ${formatLength(step.atIn, 'imperial')}`),
+    sheetPlan.cuts.map((step) => formatLength(step.atIn, 'imperial')),
   );
 });
 

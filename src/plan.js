@@ -24,9 +24,6 @@ export function planProject(project) {
   }
 
   const materials = project.materials.map((material, materialIndex) => {
-    if ((material.sheets ?? []).length === 0) {
-      warnings.push(`Material group "${material.name}" lists no sheet size, so 48 x 96 was assumed for anything you need to buy.`);
-    }
     const result = packMaterial({
       material,
       parts: project.parts,

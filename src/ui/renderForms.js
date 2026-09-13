@@ -98,7 +98,7 @@ function modeFor(uiState, id, derived) {
  * which left it ambiguous which one won. Now the list carries an "Other" entry
  * and the measurement box appears only under it.
  */
-function thicknessControl(material, index, uiState) {
+function thicknessControl(material, index, uiState, bare = false) {
   const match = THICKNESS_PRESETS.find((preset) => Math.abs(preset.inches - material.thicknessIn) < 1e-6);
   const mode = modeFor(uiState, material.id, match === undefined ? 'custom' : 'preset');
   const options = THICKNESS_PRESETS
@@ -112,6 +112,7 @@ function thicknessControl(material, index, uiState) {
   const custom = mode === 'custom'
     ? field('Thickness (in)', stepperInput({ key: `materials.${index}.thicknessIn`, value: material.thicknessIn, step: 0.0625 }))
     : '';
+  if (bare) return select + custom;
   return field('Thickness', select) + custom;
 }
 
@@ -153,6 +154,7 @@ function sheetRow(project, materialIndex, sheetIndex, uiState) {
     .join('');
 
   return `<tr>
+    ${reorderCell('move-sheet', sheetIndex, material.sheets.length, `data-material="${materialIndex}"`)}
     <td><select data-action-select="move-sheet-to" data-material="${materialIndex}" data-sheet="${sheetIndex}">${owners}</select></td>
     <td><select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
     <td class="num">${stepperInput({ key: `${base}.widthIn`, value: sheet.widthIn })}</td>
@@ -167,12 +169,12 @@ function materialRow(material, index, count, uiState) {
   return `<tr>
     ${reorderCell('move-material', index, count)}
     <td>${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}</td>
-    <td>${thicknessControl(material, index, uiState)}</td>
+    <td>${thicknessControl(material, index, uiState, true)}</td>
     <td class="mid"><button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove this material and every sheet of it" aria-label="Remove this material and every sheet of it">&times;</button></td>
   </tr>`;
 }
 
-function materialsPanel(project, uiState, open) {
+function materialsPanel(project, uiState, open, sheetSort) {
   const materials = project.materials
     .map((material, index) => materialRow(material, index, project.materials.length, uiState))
     .join('');
@@ -196,13 +198,17 @@ function materialsPanel(project, uiState, open) {
     <h3 class="sub-head">Sheets on hand</h3>
     <table class="grid-table">
       <thead><tr>
-        <th>Material</th><th>Size</th><th class="num">Width</th><th class="num">Length</th>
-        <th class="num">On hand</th><th>Note</th><th></th>
+        <th class="mid"></th>
+        ${sortHeader('materialId', 'Material', sheetSort, '', 'sort-sheets')}
+        <th>Size</th>
+        ${sortHeader('widthIn', 'Width', sheetSort, 'num', 'sort-sheets')}
+        ${sortHeader('lengthIn', 'Length', sheetSort, 'num', 'sort-sheets')}
+        ${sortHeader('qty', 'On hand', sheetSort, 'num', 'sort-sheets')}
+        <th>Note</th><th></th>
       </tr></thead>
       <tbody>${sheets}</tbody>
     </table>
     <button type="button" class="add-row" data-action="add-sheet"${noMaterials ? ' disabled title="Add a material first"' : ''}>+ Add sheet</button>
-    <p class="muted hint">Set On hand to 0 for a size you still need to buy.</p>
   </details>`;
 }
 
@@ -213,11 +219,11 @@ function materialsPanel(project, uiState, open) {
  * so the manual up and down controls and the column sort are the same fact and
  * cannot disagree. Clicking the column already sorted reverses it.
  */
-function sortHeader(key, label, sort, extraClass = '') {
+function sortHeader(key, label, sort, extraClass = '', action = 'sort-parts') {
   const active = sort?.key === key;
   const arrow = active ? (sort.dir === 1 ? ' \u25B2' : ' \u25BC') : '';
   const cls = ['sortable', extraClass, active ? 'sorted' : ''].filter(Boolean).join(' ');
-  return `<th class="${cls}"><button type="button" data-action="sort-parts" data-key="${escapeHtml(key)}"`
+  return `<th class="${cls}"><button type="button" data-action="${action}" data-key="${escapeHtml(key)}"`
     + ` aria-label="Sort by ${escapeHtml(label)}">${escapeHtml(label)}${arrow}</button></th>`;
 }
 
@@ -269,7 +275,7 @@ function partsPanel(project, sort, open) {
  * once and then rarely looked at, and it was taking the top of the column to
  * say nothing.
  */
-export function renderForms(project, uiState, sort = null, open = { meta: false, materials: true, parts: true }) {
+export function renderForms(project, uiState, sort = null, open = { meta: false, materials: true, parts: true }, sheetSort = null) {
   return metaPanel(project, open)
-    + materialsPanel(project, uiState, open) + partsPanel(project, sort, open);
+    + materialsPanel(project, uiState, open, sheetSort) + partsPanel(project, sort, open);
 }

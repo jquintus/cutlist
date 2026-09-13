@@ -4,7 +4,7 @@
 // is what lets the parity test parse the real emitted artifact in a plain
 // node --test run with no browser.
 
-import { coordStr } from '../geometry.js';
+import { coordStr, EPS } from '../geometry.js';
 import { formatLength } from '../units.js';
 import { escapeHtml } from './escape.js';
 import { sheetKey } from './renderTable.js';
@@ -194,11 +194,11 @@ function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
   const base = Math.max(0.6, scale / 28);
   return sheetPlan.cuts.map((step) => {
     const acrossX = step.axis === 'v';
-    // The measurement rides with the step number, on the line it belongs to.
-    // A part's own dimensions are already on the parts list; what cannot be
-    // read anywhere else is where the saw goes, and that is a property of the
-    // line, not of the box beside it.
-    const text = `${step.seq}. ${formatLength(step.atIn, system)}`;
+    // The measurement alone. The step number was on here too and read as a
+    // second number competing with the one that matters; the cut order is
+    // visible in the picture and spelled out in the CUTS list beside it. What
+    // cannot be read anywhere else is where the saw goes.
+    const text = formatLength(step.atIn, system);
 
     const size = base;
     const width = textWidth(text, size) + 2 * size * MARK_PAD;
@@ -249,7 +249,7 @@ function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
  * Best effort, not a guarantee: a label with nowhere left to go on its own line
  * stays where it is rather than wandering off it.
  */
-function spreadMarks(marks) {
+function spreadMarks(marks, widthIn, lengthIn) {
   const placed = [];
   for (const mark of marks) {
     const span = Math.abs(mark.alongTo - mark.alongFrom);
@@ -268,6 +268,10 @@ function spreadMarks(marks) {
       if (at < mark.alongFrom || at > mark.alongTo) continue;
       const candidate = { ...mark, [mark.along]: at };
       candidate.box = { ...mark.box, [mark.along]: mark.box[mark.along] + shift };
+      // Sliding to dodge a neighbour must not push the label off the sheet.
+      // The clamp that placed it ran before this, so the check belongs here too.
+      if (candidate.box.x < -EPS || candidate.box.x + candidate.box.w > widthIn + EPS) continue;
+      if (candidate.box.y < -EPS || candidate.box.y + candidate.box.h > lengthIn + EPS) continue;
       if (placed.some((other) => overlaps(candidate.box, other.box))) continue;
       settled = candidate;
       break;
@@ -385,13 +389,14 @@ function scrapLabelsSvg(sheetPlan, system, maxLabelSize) {
 export function sheetSvg(sheetPlan, materialPlan, params) {
   const system = params.displaySystem ?? 'imperial';
   const { widthIn, lengthIn, usable } = sheetPlan;
+  const trimmed = usable.w < widthIn - EPS || usable.h < lengthIn - EPS;
   const scale = Math.min(widthIn, lengthIn);
   const maxLabelSize = Math.max(0.75, scale / 22);
   const stroke = Math.max(0.05, scale / 400);
   const key = sheetKey(materialPlan, sheetPlan, materialPlan.sheets.indexOf(sheetPlan));
 
   const colors = colorsForSheet(sheetPlan.placements);
-  const marks = spreadMarks(stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn));
+  const marks = spreadMarks(stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn), widthIn, lengthIn);
   const blocks = sheetPlan.placements.map((placement) => {
     // A part carries its name and nothing else. Its size is on the parts list
     // beside the diagram, and writing it along the edges put faint text over a
@@ -434,9 +439,15 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
     ` role="img" aria-label="${escapeHtml(`${sheetPlan.label}, ${materialPlan.name}`)}">\n`,
     `    <rect class="sheet-edge" x="0" y="0" width="${coordStr(widthIn)}" height="${coordStr(lengthIn)}"`,
     ` fill="#fdfdfb" stroke="#111" stroke-width="${coordStr(stroke * 2)}" />\n`,
-    `    <rect class="sheet-usable" x="${coordStr(usable.x)}" y="${coordStr(usable.y)}"`,
-    ` width="${coordStr(usable.w)}" height="${coordStr(usable.h)}"`,
-    ` fill="none" stroke="#999" stroke-dasharray="${coordStr(stroke * 6)}" stroke-width="${coordStr(stroke)}" />\n`,
+    // The usable area is only worth drawing when edge trim has actually pulled
+    // it in from the sheet's own edge. With no trim it traced the sheet exactly,
+    // so a second dashed outline sat on top of the solid one and read as a cut
+    // around the leftover rather than as the sheet's own border.
+    trimmed
+      ? `    <rect class="sheet-usable" x="${coordStr(usable.x)}" y="${coordStr(usable.y)}"`
+        + ` width="${coordStr(usable.w)}" height="${coordStr(usable.h)}"`
+        + ` fill="none" stroke="#999" stroke-dasharray="${coordStr(stroke * 6)}" stroke-width="${coordStr(stroke)}" />\n`
+      : '',
     blocks,
     `\n`,
     cutLinesSvg(marks, key, scale),

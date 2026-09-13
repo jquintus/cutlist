@@ -156,13 +156,46 @@ textarea { width: 100%; resize: vertical; }
 
 @media (min-width: 62rem) {
   .workspace { grid-template-columns: minmax(28rem, 5fr) 6fr; gap: 32px; }
-  .results { position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
 }
+
+/* The plan column used to be sticky with its own max-height and overflow. That
+   turned it into a second scroll container: the page could only scroll as far
+   as the capped column was tall, so a wheel over the input side moved a little
+   and then stopped dead with the bottom of the form out of reach. One page,
+   one scrollbar. */
 
 .section { margin: 0 0 26px; }
 
-.section > h2 {
+.section > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 8px;
+  padding: 2px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.section > summary::-webkit-details-marker { display: none; }
+
+/* Our own marker, so it sits on the line rather than above a block-level
+   heading, and turns to say which way the section is going. */
+.section > summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--ink-soft);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .12s ease;
+}
+
+.section[open] > summary::before { transform: rotate(90deg); }
+.section > summary:hover::before { border-left-color: var(--ink); }
+
+.section > summary > h2 {
+  margin: 0;
   font-size: .72rem;
   letter-spacing: .09em;
   text-transform: uppercase;
@@ -566,3 +599,20 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .hint { margin: 6px 0 0; font-size: .8rem; }
 .add-row:disabled { opacity: .45; cursor: default; }
 .add-row:disabled:hover { border-color: var(--line); color: var(--ink-soft); }
+
+/* A table with seven columns will not always fit the column it sits in. It
+   scrolls sideways on its own rather than pushing its last cells out of the
+   page, which is what put stray remove buttons over the plan beside it. */
+.section .grid-table { display: block; width: 100%; overflow-x: auto; }
+.section .grid-table > thead, .section .grid-table > tbody { display: table; width: 100%; table-layout: auto; }
+
+/* Selecting a step clears the picture down to that one cut.
+ *
+ * A sheet with a dozen cuts carries a dozen measurements, and on a narrow sheet
+ * they are wider than the strip they label. Once someone has said which cut
+ * they are making, the other eleven are noise: they fade to their lines and
+ * only the chosen label keeps its text. */
+.sheet-view.has-selection .cut-step-no { opacity: 0; }
+.sheet-view.has-selection .cut-step-no.is-active { opacity: 1; }
+.sheet-view.has-selection .cut-line { stroke-opacity: .25; }
+.sheet-view.has-selection .cut-line.is-active { stroke-opacity: 1; }

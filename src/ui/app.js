@@ -20,6 +20,7 @@ import { loadProjectIndex, loadProjectFile } from '../io/projects.js';
 import { encodeProject, decodeHash } from '../share/codec.js';
 import { directUpload } from '../share/upload.js';
 import { THICKNESS_PRESETS, SHEET_PRESETS, thicknessLabelFor } from '../units.js';
+import { buildPdf } from '../export/pdf.js';
 import { renderForms } from './renderForms.js';
 import { renderResults } from './renderResults.js';
 import { readNumericEntry, entryText } from './numericEntry.js';
@@ -46,6 +47,7 @@ const store = createProjectStore(newProject());
 // The order itself lives in the project, not here: a sort rewrites parts[] once
 // and the manual move controls go on working on the same array.
 let partsSort = null;
+let sheetSort = null;
 
 // Which input sections are expanded. Read back off the DOM before each render,
 // because the whole form is rebuilt on every keystroke and a section that
@@ -146,7 +148,7 @@ function render() {
   const plan = planProject(project);
 
   readOpenSections();
-  el.forms.innerHTML = renderForms(project, uiState, partsSort, openSections);
+  el.forms.innerHTML = renderForms(project, uiState, partsSort, openSections, sheetSort);
   // The base link travels in with the rest of the presentation state: the
   // results renderer stays free of the DOM so the whole surface can be
   // exercised under node --test, which is what caught this.
@@ -247,6 +249,7 @@ function stepElementFrom(node) {
 
 function clearActiveStep() {
   for (const node of el.results.querySelectorAll('.is-active')) node.classList.remove('is-active');
+  for (const node of el.results.querySelectorAll('.has-selection')) node.classList.remove('has-selection');
   activeStep = null;
 }
 
@@ -257,6 +260,11 @@ function setActiveStep(sheet, seq) {
   // lights the step up on both sides and on no other sheet.
   const selector = `[data-sheet="${CSS.escape(sheet)}"][data-step="${CSS.escape(seq)}"]`;
   for (const node of el.results.querySelectorAll(selector)) node.classList.add('is-active');
+  // The sheet that owns the step goes quiet everywhere else: its other
+  // measurements are noise once someone has said which cut they are making.
+  const svg = el.results.querySelector(`.sheet-todo[data-sheet="${CSS.escape(sheet)}"]`)
+    ?.closest('.sheet')?.querySelector('.sheet-view');
+  svg?.classList.add('has-selection');
   activeStep = { sheet, seq };
 }
 
@@ -460,6 +468,55 @@ const ACTIONS = {
     const [moved] = draft.materials[from].sheets.splice(Number(dataset.sheet), 1);
     draft.materials[to].sheets.push(moved);
   },
+  // Swapping a sheet spec's two dimensions is a real project edit: it goes
+  // through update() like any other, so the packer reruns and the plan changes.
+  // The view-only rotate is a different control entirely and touches nothing
+  // here.
+  'rotate-sheet': (draft, dataset) => {
+    const sheet = draft.materials[Number(dataset.material)].sheets[Number(dataset.sheet)];
+    resizeSheet(sheet, () => {
+      [sheet.widthIn, sheet.lengthIn] = [sheet.lengthIn, sheet.widthIn];
+    });
+    syncSheetSizeMode(sheet);
+  },
+  // Reordering. The list a person builds is their own, and its order carries
+  // through to the cut list and the parts checklist, so it has to be editable
+  // after the fact. A move that would run off either end is a no-op rather than
+  // an error: the buttons are disabled there, and a keyboard can still reach
+  // them for a moment during a re-render.
+  'sort-parts': (draft, dataset) => {
+    const key = dataset.key;
+    partsSort = { key, dir: partsSort?.key === key && partsSort.dir === 1 ? -1 : 1 };
+    const dir = partsSort.dir;
+    // Material sorts by the group's position, not by its id, so the order on
+    // screen matches the order the materials are listed in above.
+    const rank = (part) => (key === 'materialId'
+      ? draft.materials.findIndex((material) => material.id === part.materialId)
+      : part[key]);
+    draft.parts.sort((a, b) => {
+      const left = rank(a);
+      const right = rank(b);
+      if (typeof left === 'number' && typeof right === 'number') return (left - right) * dir;
+      return String(left).localeCompare(String(right), undefined, { numeric: true }) * dir;
+    });
+  },
+  // Sheets sort inside their own material, because the table is grouped by
+  // material and a sort that shuffled rows across those groups would be
+  // reassigning stock rather than ordering it.
+  'sort-sheets': (draft, dataset) => {
+    const key = dataset.key;
+    sheetSort = { key, dir: sheetSort?.key === key && sheetSort.dir === 1 ? -1 : 1 };
+    if (key === 'materialId') {
+      draft.materials.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }) * sheetSort.dir);
+      return;
+    }
+    for (const material of draft.materials) {
+      material.sheets.sort((a, b) => (a[key] - b[key]) * sheetSort.dir);
+    }
+  },
+  'move-part': (draft, dataset) => moveWithin(draft.parts, dataset),
+  'move-material': (draft, dataset) => moveWithin(draft.materials, dataset),
+  'move-sheet': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].sheets, dataset),
   'remove-sheet': (draft, dataset) => {
     draft.materials[Number(dataset.material)].sheets.splice(Number(dataset.sheet), 1);
   },
@@ -528,8 +585,8 @@ function writeHash(project) {
 // right now, rather than after the debounce window.
 const debouncedWriteHash = debounce(writeHash, HASH_WRITE_DEBOUNCE_MS);
 
-function saveTextFile(filename, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+function saveTextFile(filename, data, type) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
@@ -698,13 +755,16 @@ shareButton.addEventListener('click', () => copyShareLink(shareButton));
 
 document.getElementById('btn-open').addEventListener('click', () => el.openDialog.showModal());
 
-// A PDF is the browser's own print dialog with "Save as PDF" as the
-// destination, so this opens that rather than pretending to be a second thing.
-// It lives in the menu, not in the header: Ctrl+P already does it, and a
-// dedicated button was taking a third of the width at the top of the page.
+// Export a PDF outright: one click, a file, nothing to choose. Going through
+// the print dialog put a Save as PDF destination in front of someone who had
+// already said what they wanted, and produced whatever the browser's page
+// setup happened to be rather than a page built for this.
 document.getElementById('btn-pdf').addEventListener('click', () => {
-  setStatus('Choose "Save as PDF" as the destination in the print dialog.');
-  window.print();
+  const project = store.current;
+  const bytes = buildPdf(planProject(project), { title: project.name || 'cutlist' });
+  const name = (project.name || 'cutlist').replace(/[^\w -]+/g, '').trim() || 'cutlist';
+  saveTextFile(`${name}.pdf`, bytes, 'application/pdf');
+  setStatus(`Saved ${name}.pdf`);
 });
 
 document.getElementById('btn-export').addEventListener('click', () => {

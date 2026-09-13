@@ -73,13 +73,15 @@ test('a part pointing at a material that does not exist warns instead of throwin
   assert.equal(allPlacements(plan).length, 0);
 });
 
-test('a material group with no sheet entry warns and still plans against the fallback sheet', () => {
+test('a material with no sheet entry still plans against the fallback sheet', () => {
   const project = normalizeProject({
     materials: [{ id: 'm1', name: 'Mystery ply', sheets: [] }],
     parts: [{ id: 'p1', name: 'Panel', qty: 1, widthIn: 10, lengthIn: 10, materialId: 'm1' }],
   });
   const plan = planProject(project);
-  assert.ok(plan.warnings.some((warning) => /lists no sheet size/.test(warning)));
+  // No warning: the shopping list already names the size to buy, so announcing
+  // the fallback told nobody anything they could act on.
+  assert.ok(!plan.warnings.some((warning) => /no sheet size/.test(warning)));
   assert.equal(plan.materials[0].extraSheetsNeeded, 1);
 });
 
