@@ -637,13 +637,3 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
   }
 }
 
-.grain-lock {
-  margin-left: 4px;
-  padding: 0 5px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font-size: .72em;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}

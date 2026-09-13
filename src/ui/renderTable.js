@@ -133,12 +133,7 @@ function cutItemHtml(row) {
 }
 
 function partItemHtml(row, ticked) {
-  // Say both things a person set or the packer decided: a locked part carries
-  // its grain mark whether or not the layout wanted to turn it, so ticking the
-  // box has a visible answer even when the packer was never going to rotate
-  // that part anyway.
   const turned = row.rotated ? ' (turned)' : '';
-  const grain = row.grainLocked ? ' <span class="grain-lock" title="Grain runs along the length">grain</span>' : '';
   // The tick is keyed to the part, not to its position, so it survives a
   // reorder and a sort, and it goes into the fragment so a refresh at the saw
   // does not wipe what has already been cut.
@@ -146,7 +141,7 @@ function partItemHtml(row, ticked) {
   const done = ticked.has(id);
   return `<li${done ? ' class="done"' : ''}><label><input type="checkbox" data-tick="${escapeHtml(id)}"${done ? ' checked' : ''} />`
     + ` <strong>${escapeHtml(row.label)}</strong> - ${escapeHtml(row.name)}`
-    + ` - ${escapeHtml(row.sizeLabel)}${turned}${grain}</label></li>`;
+    + ` - ${escapeHtml(row.sizeLabel)}${turned}</label></li>`;
 }
 
 function leftoverHtml(rows) {

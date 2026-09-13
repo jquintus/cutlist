@@ -81,15 +81,35 @@ function stepLink(entry, view, label) {
  * full width each, a small offcut and a full sheet came out the same size on
  * screen and 25 in was a different length of line on every picture.
  */
-function sheetScalePercent(sheetPlan, plan, isRotated) {
-  const widest = plan.widestSheetIn || sheetPlan.widthIn;
-  // A turned picture presents its length across, so that is the edge to measure.
+/**
+ * The widest edge any sheet currently presents across the page.
+ *
+ * Not plan.widestSheetIn, which measures widths only: a turned sheet shows its
+ * length across, so a 48 x 96 sheet turned on its side presents 96. Measuring
+ * against widths alone let a turned sheet ask for more than the column and get
+ * clamped, which quietly broke the one scale every diagram is supposed to share.
+ */
+function widestAcross(plan, view) {
+  const edges = plan.materials.flatMap((materialPlan) => materialPlan.sheets
+    .map((sheetPlan, index) => (view.rotated?.[sheetKey(materialPlan, sheetPlan, index)] === true
+      ? sheetPlan.lengthIn
+      : sheetPlan.widthIn)));
+  return Math.max(1, ...edges);
+}
+
+/**
+ * How wide this sheet is drawn, as a share of the column.
+ *
+ * Every diagram uses the same inches per pixel, so a 24 in panel is visibly
+ * half a 48 in one and 25 in is the same length of line on every picture.
+ */
+function sheetScalePercent(sheetPlan, widest, isRotated) {
   const across = isRotated ? sheetPlan.lengthIn : sheetPlan.widthIn;
-  return Math.max(12, Math.min(100, (across / widest) * 100)).toFixed(2);
+  return Math.max(8, Math.min(100, (across / widest) * 100)).toFixed(2);
 }
 
 /** One sheet: its picture, the cuts that make it, and the parts it yields. */
-function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
+function sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widest) {
   const key = sheetKey(materialPlan, sheetPlan, index);
   // The rotation lives on the wrapper, never on the SVG: the emitted diagram
   // is byte for byte the same whichever way the picture is turned, so no
@@ -110,7 +130,7 @@ function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
       title="Open this sheet on its own, for the phone at the saw"
       >${escapeHtml(sheetPlan.label)}</a> <span class="muted">(${sourceLabel(sheetPlan.source)})</span></h3>
     <div class="sheet-grid">
-      <div class="sheet-figure" style="width:${sheetScalePercent(sheetPlan, plan, isRotated)}%">
+      <div class="sheet-figure" style="width:${sheetScalePercent(sheetPlan, widest, isRotated)}%">
         <div class="sheet-view${turned}"${isRotated ? ` style="--sheet-ratio:${sheetPlan.widthIn / sheetPlan.lengthIn};--turned-ratio:${sheetPlan.lengthIn} / ${sheetPlan.widthIn}"` : ''}>${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
         ${rotatedNotice}
         <div class="figure-tools no-print">
@@ -128,7 +148,7 @@ function materialSection(plan, materialPlan, view) {
 
   const system = plan.displaySystem ?? 'imperial';
   const sheets = materialPlan.sheets
-    .map((sheetPlan, index) => sheetArticle(plan, materialPlan, sheetPlan, index, view, system))
+    .map((sheetPlan, index) => sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widestAcross(plan, view)))
     .join('');
 
   return `<section class="material-section">
@@ -181,7 +201,7 @@ export function renderResults(plan, view = {}) {
       + '</nav>'
       + `<section class="material-section"><h2>${escapeHtml(materialPlan.name)}`
       + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>`
-      + sheetArticle(plan, materialPlan, sheetPlan, index, view, system)
+      + sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widestAcross(plan, view))
       + '</section>';
   }
 

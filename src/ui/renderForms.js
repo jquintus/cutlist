@@ -25,7 +25,7 @@ function field(labelText, inputHtml) {
 }
 
 function textInput({ key, value, type = 'text', placeholder = '' }) {
-  return `<input type="${type}" data-focus-key="${escapeHtml(key)}" data-field="${escapeHtml(key)}"`
+  return `<input type="${type}" name="${escapeHtml(key)}" data-focus-key="${escapeHtml(key)}" data-field="${escapeHtml(key)}"`
     + ` value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" />`;
 }
 
@@ -43,7 +43,7 @@ function textInput({ key, value, type = 'text', placeholder = '' }) {
  */
 function numericInput({ key, value, keypad = 'decimal' }) {
   return `<input type="text" inputmode="${keypad}" autocomplete="off" data-numeric="true"`
-    + ` data-focus-key="${escapeHtml(key)}" data-field="${escapeHtml(key)}"`
+    + ` name="${escapeHtml(key)}" data-focus-key="${escapeHtml(key)}" data-field="${escapeHtml(key)}"`
     + ` value="${escapeHtml(value)}" />`;
 }
 
@@ -69,13 +69,13 @@ function metaPanel(project, open) {
   <table class="grid-table"><tbody>
     <tr><th scope="row">Name</th><td colspan="3">${textInput({ key: 'name', value: project.name })}</td></tr>
     <tr><th scope="row">Date</th><td>${textInput({ key: 'date', value: project.date, type: 'date' })}</td>
-        <th scope="row">Units</th><td><select data-focus-key="displaySystem" data-field="displaySystem">
+        <th scope="row">Units</th><td><select name="displaySystem" data-focus-key="displaySystem" data-field="displaySystem">
           ${option('imperial', 'Inches', project.displaySystem === 'imperial')}
           ${option('metric', 'Millimeters', project.displaySystem === 'metric')}
         </select></td></tr>
     <tr><th scope="row">Blade kerf</th><td class="num">${stepperInput({ key: 'params.kerfIn', value: project.params.kerfIn, step: 0.0625 })}</td>
         <th scope="row">Edge trim</th><td class="num">${stepperInput({ key: 'params.edgeTrimIn', value: project.params.edgeTrimIn })}</td></tr>
-    <tr><th scope="row">Notes</th><td colspan="3"><textarea rows="2" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea></td></tr>
+    <tr><th scope="row">Notes</th><td colspan="3"><textarea rows="2" name="notes" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea></td></tr>
   </tbody></table>
 </details>`;
 }
@@ -105,7 +105,7 @@ function thicknessControl(material, index, uiState, bare = false) {
     .map((preset) => option(preset.id, preset.label, mode === 'preset' && match !== undefined && preset.id === match.id))
     .join('');
 
-  const select = `<select data-focus-key="m${index}.thickness" data-field="materials.${index}.thicknessPreset">
+  const select = `<select name="materials.${index}.thicknessPreset" data-focus-key="m${index}.thickness" data-field="materials.${index}.thicknessPreset">
     ${options}${option('custom', 'Other...', mode === 'custom')}
   </select>`;
 
@@ -155,11 +155,11 @@ function sheetRow(project, materialIndex, sheetIndex, uiState) {
 
   return `<tr>
     ${reorderCell('move-sheet', sheetIndex, material.sheets.length, `data-material="${materialIndex}"`)}
-    <td><select data-action-select="move-sheet-to" data-material="${materialIndex}" data-sheet="${sheetIndex}">${owners}</select></td>
-    <td><select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
+    <td><select name="sheet-material" data-action-select="move-sheet-to" data-material="${materialIndex}" data-sheet="${sheetIndex}">${owners}</select></td>
+    <td><select name="${base}.preset" data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
     <td class="num">${stepperInput({ key: `${base}.widthIn`, value: sheet.widthIn })}</td>
     <td class="num">${stepperInput({ key: `${base}.lengthIn`, value: sheet.lengthIn })}</td>
-    <td class="qty num"><input type="number" min="0" step="1" data-focus-key="${base}.qty" data-field="${base}.qty" value="${escapeHtml(sheet.qty)}" /></td>
+    <td class="qty num"><input type="number" min="0" step="1" name="${base}.qty" data-focus-key="${base}.qty" data-field="${base}.qty" value="${escapeHtml(sheet.qty)}" /></td>
     <td>${textInput({ key: `${base}.label`, value: sheet.label, placeholder: 'Note' })}</td>
     <td class="mid"><button type="button" class="row-remove" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}" title="Remove this ${escapeHtml(sheet.widthIn)} x ${escapeHtml(sheet.lengthIn)} sheet" aria-label="Remove this ${escapeHtml(sheet.widthIn)} by ${escapeHtml(sheet.lengthIn)} sheet">&times;</button></td>
   </tr>`;
@@ -244,11 +244,11 @@ function partsPanel(project, sort, open) {
   const rows = project.parts.map((part, index) => `<tr>
     ${reorderCell('move-part', index, project.parts.length)}
     <td>${textInput({ key: `parts.${index}.name`, value: part.name, placeholder: 'Part name' })}</td>
-    <td class="qty num"><input type="number" min="1" step="1" data-focus-key="parts.${index}.qty" data-field="parts.${index}.qty" value="${escapeHtml(part.qty)}" /></td>
+    <td class="qty num"><input type="number" min="1" step="1" name="parts.${index}.qty" data-focus-key="parts.${index}.qty" data-field="parts.${index}.qty" value="${escapeHtml(part.qty)}" /></td>
     <td class="num">${stepperInput({ key: `parts.${index}.widthIn`, value: part.widthIn })}</td>
     <td class="num">${stepperInput({ key: `parts.${index}.lengthIn`, value: part.lengthIn })}</td>
-    <td><select data-focus-key="parts.${index}.materialId" data-field="parts.${index}.materialId">${materialOptions(part.materialId)}</select></td>
-    <td class="mid"><input type="checkbox" data-focus-key="parts.${index}.grainLocked" data-field="parts.${index}.grainLocked"${part.grainLocked ? ' checked' : ''} aria-label="Grain runs along the length" /></td>
+    <td><select name="parts.${index}.materialId" data-focus-key="parts.${index}.materialId" data-field="parts.${index}.materialId">${materialOptions(part.materialId)}</select></td>
+    <td class="mid"><input type="checkbox" name="parts.${index}.grainLocked" data-focus-key="parts.${index}.grainLocked" data-field="parts.${index}.grainLocked"${part.grainLocked ? ' checked' : ''} aria-label="Grain runs along the length" /></td>
     <td class="mid"><button type="button" class="row-remove" data-action="remove-part" data-part="${index}" title="Remove this part" aria-label="Remove this part">&times;</button></td>
   </tr>`).join('');
 
