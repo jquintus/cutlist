@@ -19,9 +19,9 @@
       "sheets": [
         {
           "id": "m-half-s1",
-          "label": "48 x 96",
-          "widthIn": 48,
-          "lengthIn": 96,
+          "label": "",
+          "widthIn": 96,
+          "lengthIn": 48,
           "qty": 1,
           "note": ""
         }
@@ -37,7 +37,7 @@
       "sheets": [
         {
           "id": "m-quarter-s1",
-          "label": "48 x 96",
+          "label": "",
           "widthIn": 48,
           "lengthIn": 96,
           "qty": 1,
@@ -50,12 +50,12 @@
       "name": "3/4 in plywood",
       "thicknessIn": 0.75,
       "thicknessLabel": "3/4 in",
-      "note": "Nothing on hand. Everything in this group goes on the shopping list.",
+      "note": "",
       "color": "#3f7f4f",
       "sheets": [
         {
           "id": "m-three-quarter-s1",
-          "label": "48 x 96 (to buy)",
+          "label": "",
           "widthIn": 48,
           "lengthIn": 96,
           "qty": 0,
