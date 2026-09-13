@@ -47,42 +47,49 @@ function shoppingListSection(plan, system) {
   return `<section class="shopping-list"><h2>Shopping list</h2><ul>${items}</ul></section>`;
 }
 
+/** One sheet: its picture, the cuts that make it, and the parts it yields. */
+function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
+  const key = sheetKey(materialPlan, sheetPlan, index);
+  // The rotation lives on the wrapper, never on the SVG: the emitted diagram
+  // is byte for byte the same whichever way the picture is turned, so no
+  // measurement and no cut can change with it.
+  const isRotated = view.rotated?.[key] === true;
+  const turned = isRotated ? ' rotated' : '';
+  // The picture can be turned to match how the sheet is lying on the horses,
+  // but the CUTS list below always names the sheet's own original edges --
+  // it never reads the rotated view. Without a visible marker here, that
+  // mismatch is exactly what could send someone to the wrong edge.
+  const rotatedNotice = isRotated
+    ? '<p class="view-rotated-note no-print">View rotated on screen -- the CUTS list still names this sheet\'s original edges.</p>'
+    : '';
+  // Diagram and to-do list in one block, so a sheet and its steps stay
+  // together on screen and on paper.
+  return `<article class="sheet">
+    <h3><a class="sheet-link" data-sheet-link="${escapeHtml(key)}" href="#"
+      title="Open this sheet on its own, for the phone at the saw"
+      >${escapeHtml(sheetPlan.label)}</a> <span class="muted">(${sourceLabel(sheetPlan.source)})</span></h3>
+    <div class="sheet-grid">
+      <div class="sheet-figure">
+        <div class="sheet-view${turned}">${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
+        ${rotatedNotice}
+        <div class="figure-tools no-print">
+          <button type="button" data-action="rotate-view" data-sheet="${escapeHtml(key)}" title="Turn the picture only. The cuts do not change.">&#8635; Turn picture</button>
+          <button type="button" data-action="rotate-sheet" data-material="${materialPlan.materialIndex}" data-sheet-index="${index}" title="Lay the sheet the other way and work out the cuts again.">&#8644; Repack ${escapeHtml(sheetPlan.lengthIn)} x ${escapeHtml(sheetPlan.widthIn)}</button>
+        </div>
+      </div>
+      <div class="sheet-steps">${sheetCutListHtml(sheetPlan, materialPlan, system, index)}</div>
+    </div>
+  </article>`;
+}
+
 function materialSection(plan, materialPlan, view) {
   const noteHtml = materialPlan.note ? `<p class="muted">${escapeHtml(materialPlan.note)}</p>` : '';
   const onHand = `<p class="muted">${escapeHtml(materialPlan.onHandSheetCount)} sheet(s) on hand, ${escapeHtml(materialPlan.sheets.length)} laid out.</p>`;
 
   const system = plan.displaySystem ?? 'imperial';
-  const sheets = materialPlan.sheets.map((sheetPlan, index) => {
-    const key = sheetKey(materialPlan, sheetPlan, index);
-    // The rotation lives on the wrapper, never on the SVG: the emitted diagram
-    // is byte for byte the same whichever way the picture is turned, so no
-    // measurement and no cut can change with it.
-    const isRotated = view.rotated?.[key] === true;
-    const turned = isRotated ? ' rotated' : '';
-    // The picture can be turned to match how the sheet is lying on the horses,
-    // but the CUTS list below always names the sheet's own original edges --
-    // it never reads the rotated view. Without a visible marker here, that
-    // mismatch is exactly what could send someone to the wrong edge.
-    const rotatedNotice = isRotated
-      ? '<p class="view-rotated-note no-print">View rotated on screen -- the CUTS list still names this sheet\'s original edges.</p>'
-      : '';
-    // Diagram and to-do list in one block, so a sheet and its steps stay
-    // together on screen and on paper.
-    return `<article class="sheet">
-      <h3>${escapeHtml(sheetPlan.label)} <span class="muted">(${sourceLabel(sheetPlan.source)})</span></h3>
-      <div class="sheet-grid">
-        <div class="sheet-figure">
-          <div class="sheet-view${turned}">${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
-          ${rotatedNotice}
-          <div class="figure-tools no-print">
-            <button type="button" data-action="rotate-view" data-sheet="${escapeHtml(key)}" title="Turn the picture only. The cuts do not change.">&#8635; Turn picture</button>
-            <button type="button" data-action="rotate-sheet" data-material="${materialPlan.materialIndex}" data-sheet-index="${index}" title="Lay the sheet the other way and work out the cuts again.">&#8644; Repack ${escapeHtml(sheetPlan.lengthIn)} x ${escapeHtml(sheetPlan.widthIn)}</button>
-          </div>
-        </div>
-        <div class="sheet-steps">${sheetCutListHtml(sheetPlan, materialPlan, system, index)}</div>
-      </div>
-    </article>`;
-  }).join('');
+  const sheets = materialPlan.sheets
+    .map((sheetPlan, index) => sheetArticle(plan, materialPlan, sheetPlan, index, view, system))
+    .join('');
 
   return `<section class="material-section">
     <h2>${escapeHtml(materialPlan.name)}${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>
@@ -103,6 +110,24 @@ function materialSection(plan, materialPlan, view) {
  */
 export function renderResults(plan, view = {}) {
   const system = plan.displaySystem ?? 'imperial';
+
+  // One sheet on its own, which is the view for a phone at the saw: the
+  // diagram, its cuts and its parts, and nothing else competing for the screen.
+  if (view.focusSheet) {
+    for (const materialPlan of plan.materials) {
+      for (const [index, sheetPlan] of materialPlan.sheets.entries()) {
+        if (sheetKey(materialPlan, sheetPlan, index) !== view.focusSheet) continue;
+        return `<p class="focus-back no-print"><a href="${escapeHtml(location.hash.split('&')[0] || '#')}">&larr; All sheets</a></p>`
+          + `<section class="material-section"><h2>${escapeHtml(materialPlan.name)}`
+          + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>`
+          + sheetArticle(plan, materialPlan, sheetPlan, index, view, system)
+          + '</section>';
+      }
+    }
+    return `<p class="focus-back no-print"><a href="${escapeHtml(location.hash.split('&')[0] || '#')}">&larr; All sheets</a></p>`
+      + '<p class="muted">That sheet is not in this project any more.</p>';
+  }
+
   const anySheets = plan.materials.some((materialPlan) => materialPlan.sheets.length > 0);
   if (!anySheets) {
     return notesSection(plan) + warningsSection(plan)
@@ -110,8 +135,7 @@ export function renderResults(plan, view = {}) {
   }
 
   const settings = `<p class="muted">Kerf ${escapeHtml(formatLength(plan.params.kerfIn, system))},`
-    + ` edge trim ${escapeHtml(formatLength(plan.params.edgeTrimIn, system))}.`
-    + ' Work down each sheet\'s CUTS list in order, then tick off its parts.</p>';
+    + ` edge trim ${escapeHtml(formatLength(plan.params.edgeTrimIn, system))}.</p>`;
   const materials = plan.materials.map((materialPlan) => materialSection(plan, materialPlan, view)).join('');
 
   return notesSection(plan) + warningsSection(plan) + shoppingListSection(plan, system)

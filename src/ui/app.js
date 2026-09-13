@@ -42,6 +42,11 @@ const HASH_WRITE_DEBOUNCE_MS = 400;
 // and delete before their own project is right.
 const store = createProjectStore(newProject());
 
+// Which column the parts table was last sorted by, so the header can show it.
+// The order itself lives in the project, not here: a sort rewrites parts[] once
+// and the manual move controls go on working on the same array.
+let partsSort = null;
+
 // The save this project is currently attached to, or null when it has never
 // been saved. Save falls through to Save As while this is null.
 
@@ -129,7 +134,7 @@ function render() {
   const checked = validateProject(project);
   const plan = planProject(project);
 
-  el.forms.innerHTML = renderForms(project, uiState);
+  el.forms.innerHTML = renderForms(project, uiState, partsSort);
   el.results.innerHTML = renderResults(plan, view);
   // The highlighted step belonged to markup that no longer exists.
   activeStep = null;
@@ -367,6 +372,15 @@ function mintId(prefix, position) {
   return `${prefix}${Date.now()}${position}`;
 }
 
+/** Move one entry of `list` by `dataset.dir`, clamped to the list. */
+function moveWithin(list, dataset) {
+  const from = Number(dataset.index);
+  const to = from + Number(dataset.dir);
+  if (to < 0 || to >= list.length) return;
+  const [moved] = list.splice(from, 1);
+  list.splice(to, 0, moved);
+}
+
 const ACTIONS = {
   // Ids are minted explicitly, the way add-part already does it. normalizeProject
   // derives a missing sheet id positionally, so ids would renumber after a
@@ -415,6 +429,30 @@ const ACTIONS = {
     });
     syncSheetSizeMode(sheet);
   },
+  // Reordering. The list a person builds is their own, and its order carries
+  // through to the cut list and the parts checklist, so it has to be editable
+  // after the fact. A move that would run off either end is a no-op rather than
+  // an error: the buttons are disabled there, and a keyboard can still reach
+  // them for a moment during a re-render.
+  'sort-parts': (draft, dataset) => {
+    const key = dataset.key;
+    partsSort = { key, dir: partsSort?.key === key && partsSort.dir === 1 ? -1 : 1 };
+    const dir = partsSort.dir;
+    // Material sorts by the group's position, not by its id, so the order on
+    // screen matches the order the materials are listed in above.
+    const rank = (part) => (key === 'materialId'
+      ? draft.materials.findIndex((material) => material.id === part.materialId)
+      : part[key]);
+    draft.parts.sort((a, b) => {
+      const left = rank(a);
+      const right = rank(b);
+      if (typeof left === 'number' && typeof right === 'number') return (left - right) * dir;
+      return String(left).localeCompare(String(right), undefined, { numeric: true }) * dir;
+    });
+  },
+  'move-part': (draft, dataset) => moveWithin(draft.parts, dataset),
+  'move-material': (draft, dataset) => moveWithin(draft.materials, dataset),
+  'move-sheet': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].sheets, dataset),
   'remove-sheet': (draft, dataset) => {
     draft.materials[Number(dataset.material)].sheets.splice(Number(dataset.sheet), 1);
   },
@@ -437,12 +475,32 @@ const ACTIONS = {
 // ---------------------------------------------------------------------------
 // Sharing, import, export
 
+/**
+ * Point every per-sheet link at the current project.
+ *
+ * A sheet link carries the whole project plus that sheet's key, so it is a real
+ * URL someone can middle-click, open in a tab of its own, or keep on a phone at
+ * the saw. That means its href has to be rebuilt whenever the project changes,
+ * which is exactly when the address bar's own hash is rewritten.
+ */
+function refreshSheetLinks() {
+  const base = location.hash.split('&')[0];
+  for (const link of document.querySelectorAll('[data-sheet-link]')) {
+    link.setAttribute('href', `${base}&sheet=${encodeURIComponent(link.dataset.sheetLink)}`);
+  }
+}
+
+function focusSuffix() {
+  return view.focusSheet ? `&sheet=${encodeURIComponent(view.focusSheet)}` : '';
+}
+
 function writeHash(project) {
   try {
-    const hash = `#${encodeProject(project)}`;
+    const hash = `#${encodeProject(project)}${focusSuffix()}`;
     // replaceState, not pushState: the back button should leave the page, not
     // walk backward through every keystroke.
     history.replaceState(null, '', hash);
+    refreshSheetLinks();
   } catch {
     setStatus('This project is too large to put in a share link. Export it as a file instead.', 'error');
   }
@@ -655,11 +713,40 @@ el.picker.addEventListener('change', (event) => openIndexedProject(event.target.
 // Start up. A share link in the fragment wins over anything the picker offers,
 // because that link is what someone opened on purpose.
 
+/** Which sheet, if any, the current fragment asks to show on its own. */
+function focusFromHash() {
+  const match = /[&]sheet=([^&]*)/.exec(location.hash);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Follow a sheet link, and the Back button out of one.
+ *
+ * The app writes its own fragment with replaceState, which fires nothing, so
+ * the only thing that reaches this is a real navigation: someone clicking a
+ * sheet link, or going back. Only the focus changes; the project in the
+ * fragment is the one already on screen, and reloading it would throw away
+ * whatever has been typed since.
+ */
+window.addEventListener('hashchange', () => {
+  const next = focusFromHash();
+  if (next === view.focusSheet) return;
+  view.focusSheet = next;
+  document.body.classList.toggle('focus-sheet', next !== null);
+  render();
+  refreshSheetLinks();
+  window.scrollTo(0, 0);
+});
+
+view.focusSheet = focusFromHash();
+
 const restored = decodeHash(location.hash);
 if (restored.ok) {
   store.load(restored.project);
 } else if (location.hash.startsWith('#pako:')) {
   setStatus(restored.error, 'error');
 }
+document.body.classList.toggle('focus-sheet', view.focusSheet !== null);
 render();
+refreshSheetLinks();
 populatePicker();

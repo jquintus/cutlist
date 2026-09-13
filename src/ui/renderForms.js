@@ -115,7 +115,23 @@ function thicknessControl(material, index, uiState) {
   return field('Thickness', select) + custom;
 }
 
-function sheetRow(materialIndex, sheet, sheetIndex, uiState) {
+/**
+ * Move a row up or down in its list.
+ *
+ * The order a person enters stock and parts in is their own, and it survives
+ * into the cut list and the parts checklist, so being stuck with the order of
+ * first typing is a real cost. Disabled at the ends rather than hidden, so the
+ * column never changes width as rows move.
+ */
+function reorderCell(action, index, count, extra = '') {
+  const up = `<button type="button" class="row-move" data-action="${action}" data-dir="-1" ${extra} data-index="${index}"`
+    + `${index === 0 ? ' disabled' : ''} aria-label="Move up" title="Move up">&#9650;</button>`;
+  const down = `<button type="button" class="row-move" data-action="${action}" data-dir="1" ${extra} data-index="${index}"`
+    + `${index === count - 1 ? ' disabled' : ''} aria-label="Move down" title="Move down">&#9660;</button>`;
+  return `<td class="mid move"><span class="moves">${up}${down}</span></td>`;
+}
+
+function sheetRow(materialIndex, sheet, sheetIndex, uiState, sheetCount) {
   const preset = SHEET_PRESETS.find((p) => p.widthIn === sheet.widthIn && p.lengthIn === sheet.lengthIn);
   const mode = modeFor(uiState, sheet.id, preset === undefined ? 'custom' : 'preset');
   const options = SHEET_PRESETS
@@ -123,6 +139,7 @@ function sheetRow(materialIndex, sheet, sheetIndex, uiState) {
     .join('');
   const base = `materials.${materialIndex}.sheets.${sheetIndex}`;
   return `<tr>
+    ${reorderCell('move-sheet', sheetIndex, sheetCount, `data-material="${materialIndex}"`)}
     <td><select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
     <td class="num">${stepperInput({ key: `${base}.widthIn`, value: sheet.widthIn })}</td>
     <td class="num">${stepperInput({ key: `${base}.lengthIn`, value: sheet.lengthIn })}</td>
@@ -132,7 +149,7 @@ function sheetRow(materialIndex, sheet, sheetIndex, uiState) {
   </tr>`;
 }
 
-function materialGroup(material, index, uiState) {
+function materialGroup(material, index, uiState, count) {
   const groupName = material.name === '' ? 'this unnamed group' : `"${escapeHtml(material.name)}"`;
 
   // The sheet sizes are drawn inside the group's own box with a rule down the
@@ -140,6 +157,10 @@ function materialGroup(material, index, uiState) {
   // rather than something you have to work out from two Remove buttons.
   return `<div class="group">
     <div class="group-head">
+      <span class="moves">
+        <button type="button" class="row-move" data-action="move-material" data-dir="-1" data-index="${index}"${index === 0 ? ' disabled' : ''} aria-label="Move material up" title="Move up">&#9650;</button>
+        <button type="button" class="row-move" data-action="move-material" data-dir="1" data-index="${index}"${index === count - 1 ? ' disabled' : ''} aria-label="Move material down" title="Move down">&#9660;</button>
+      </span>
       ${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}
       ${thicknessControl(material, index, uiState)}
       <button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove ${groupName} and every sheet size in it" aria-label="Remove ${groupName} and every sheet size in it">&times;</button>
@@ -148,10 +169,10 @@ function materialGroup(material, index, uiState) {
       <h3>Sheets</h3>
       <table class="grid-table">
         <thead><tr>
-          <th>Size</th><th class="num">Width</th><th class="num">Length</th>
+          <th class="mid"></th><th>Size</th><th class="num">Width</th><th class="num">Length</th>
           <th class="num">On hand</th><th>Note</th><th></th>
         </tr></thead>
-        <tbody>${material.sheets.map((sheet, i) => sheetRow(index, sheet, i, uiState)).join('')}</tbody>
+        <tbody>${material.sheets.map((sheet, i) => sheetRow(index, sheet, i, uiState, material.sheets.length)).join('')}</tbody>
       </table>
       <button type="button" class="add-row" data-action="add-sheet" data-material="${index}">+ Add sheet size</button>
     </div>
@@ -159,14 +180,29 @@ function materialGroup(material, index, uiState) {
 }
 
 function materialsPanel(project, uiState) {
-  const groups = project.materials.map((m, i) => materialGroup(m, i, uiState)).join('');
+  const groups = project.materials.map((m, i) => materialGroup(m, i, uiState, project.materials.length)).join('');
   return `<section class="section" data-panel="materials"><h2>Material</h2>
     ${groups}
     <button type="button" class="add-row" data-action="add-material">+ Add material</button>
   </section>`;
 }
 
-function partsPanel(project) {
+/**
+ * A column header you can sort by.
+ *
+ * Sorting rewrites the stored order rather than layering a view on top of it,
+ * so the manual up and down controls and the column sort are the same fact and
+ * cannot disagree. Clicking the column already sorted reverses it.
+ */
+function sortHeader(key, label, sort, extraClass = '') {
+  const active = sort?.key === key;
+  const arrow = active ? (sort.dir === 1 ? ' \u25B2' : ' \u25BC') : '';
+  const cls = ['sortable', extraClass, active ? 'sorted' : ''].filter(Boolean).join(' ');
+  return `<th class="${cls}"><button type="button" data-action="sort-parts" data-key="${escapeHtml(key)}"`
+    + ` aria-label="Sort by ${escapeHtml(label)}">${escapeHtml(label)}${arrow}</button></th>`;
+}
+
+function partsPanel(project, sort) {
   const declared = new Set(project.materials.map((material) => material.id));
 
   // A part can belong to no group at all: added before the first group existed,
@@ -181,6 +217,7 @@ function partsPanel(project) {
   };
 
   const rows = project.parts.map((part, index) => `<tr>
+    ${reorderCell('move-part', index, project.parts.length)}
     <td>${textInput({ key: `parts.${index}.name`, value: part.name, placeholder: 'Part name' })}</td>
     <td class="qty num"><input type="number" min="1" step="1" data-focus-key="parts.${index}.qty" data-field="parts.${index}.qty" value="${escapeHtml(part.qty)}" /></td>
     <td class="num">${stepperInput({ key: `parts.${index}.widthIn`, value: part.widthIn })}</td>
@@ -193,8 +230,13 @@ function partsPanel(project) {
   return `<section class="section" data-panel="parts"><h2>Parts</h2>
     <table class="grid-table">
       <thead><tr>
-        <th>Name</th><th class="num">Qty</th><th class="num">Width</th><th class="num">Length</th>
-        <th>Material</th><th class="mid" title="Grain must run along the length">Grain</th><th></th>
+        <th class="mid"></th>
+        ${sortHeader('name', 'Name', sort)}
+        ${sortHeader('qty', 'Qty', sort, 'num')}
+        ${sortHeader('widthIn', 'Width', sort, 'num')}
+        ${sortHeader('lengthIn', 'Length', sort, 'num')}
+        ${sortHeader('materialId', 'Material', sort)}
+        <th class="mid" title="Grain must run along the length">Grain</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -202,7 +244,7 @@ function partsPanel(project) {
   </section>`;
 }
 
-export function renderForms(project, uiState) {
+export function renderForms(project, uiState, sort = null) {
   return metaPanel(project)
-    + materialsPanel(project, uiState) + partsPanel(project);
+    + materialsPanel(project, uiState) + partsPanel(project, sort);
 }

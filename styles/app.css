@@ -423,3 +423,59 @@ dialog .row button:hover { border-color: var(--ink); }
 .grid-table td:first-child input[type="text"] { min-width: 8rem; }
 .grid-table td.num { width: 6rem; }
 .grid-table td.mid { width: 2rem; }
+
+/* Reordering. Two small chevrons in their own column, disabled at the ends so
+   the column keeps its width as a row travels. */
+.moves { display: inline-flex; flex-direction: column; gap: 1px; }
+
+.row-move {
+  width: 18px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 6px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.row-move:hover:not(:disabled) { background: var(--accent-soft); color: var(--ink); }
+.row-move:disabled { opacity: .3; cursor: default; }
+.grid-table td.move { width: 1.6rem; }
+
+/* A sheet's heading is a link to that sheet on its own, which is the view for a
+   phone at the saw. It carries the whole project, so it can be opened in a tab,
+   bookmarked, or sent to another device. */
+.sheet-link { color: inherit; text-decoration: none; border-bottom: 1px dashed var(--line); }
+.sheet-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.focus-back { margin: 0 0 12px; }
+.focus-back a { color: var(--accent); text-decoration: none; }
+.focus-back a:hover { text-decoration: underline; }
+
+/* In the focused view the input column is not on screen at all, so the plan
+   gets the whole width and none of the sticky-column behavior. */
+body.focus-sheet .inputs { display: none; }
+body.focus-sheet .workspace { grid-template-columns: 1fr; }
+body.focus-sheet .results { position: static; max-height: none; overflow: visible; }
+
+/* A sortable header is a button that still looks like a header. */
+.grid-table th.sortable { padding: 0; }
+
+.grid-table th.sortable button {
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.grid-table th.sortable.num button { text-align: right; }
+.grid-table th.sortable button:hover { color: var(--ink); background: var(--accent-soft); }
+.grid-table th.sorted button { color: var(--accent); }

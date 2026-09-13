@@ -55,10 +55,14 @@ export function encodeProject(project, { deflate = pakoDeflate } = {}) {
  * message) and must not take the page down.
  */
 export function decodeHash(hash, { inflate = pakoInflate } = {}) {
-  const raw = typeof hash === 'string' ? hash.replace(/^#/, '') : '';
+  let raw = typeof hash === 'string' ? hash.replace(/^#/, '') : '';
   if (raw === '') {
     return { ok: false, error: 'There is no shared project in this link.' };
   }
+  // A focused sheet rides after the payload as `&sheet=<key>`, so one link can
+  // carry both the whole project and which sheet to open on. Strip it before
+  // decoding; the payload itself is base64url and never contains '&'.
+  raw = raw.split('&')[0];
   if (!raw.startsWith(HASH_PREFIX)) {
     return { ok: false, error: 'This link does not carry a cutlist project.' };
   }
