@@ -16,11 +16,13 @@ const MATERIAL_COLORS = Object.freeze([
  * `unplanned` exists from the start so out-of-scope stock always has somewhere
  * to live that the packer is never handed.
  */
-export function newProject() {
+export function newProject({ now = () => new Date() } = {}) {
   return {
     schemaVersion: SCHEMA_VERSION,
     name: '',
-    date: '',
+    // Today, because the machine already knows it and a blank date is one more
+    // field to fill in for something nobody wants to type.
+    date: now().toISOString().slice(0, 10),
     notes: '',
     displaySystem: 'imperial',
     params: { kerfIn: DEFAULT_KERF_IN, edgeTrimIn: DEFAULT_EDGE_TRIM_IN },
@@ -71,7 +73,6 @@ export function normalizeProject(raw) {
       name: str(material.name, `Material ${materialIndex + 1}`),
       thicknessIn: num(material.thicknessIn, 0),
       thicknessLabel: str(material.thicknessLabel),
-      note: str(material.note),
       color: str(material.color) || MATERIAL_COLORS[materialIndex % MATERIAL_COLORS.length],
       sheets: arr(material.sheets).map((rawSheet, sheetIndex) => {
         const sheet = rawSheet && typeof rawSheet === 'object' ? rawSheet : {};

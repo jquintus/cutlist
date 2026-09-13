@@ -44,7 +44,6 @@ export function planProject(project) {
       name: material.name,
       thicknessIn: material.thicknessIn,
       thicknessLabel: material.thicknessLabel,
-      note: material.note,
       color: material.color,
       sheets: result.sheets,
       onHandSheetCount: result.onHandSheetCount,

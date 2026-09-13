@@ -64,8 +64,8 @@ function stepperInput({ key, value, step = 0.125, keypad = 'decimal' }) {
     + `</span></span>`;
 }
 
-function metaPanel(project) {
-  return `<section class="section" data-panel="meta"><h2>Project</h2>
+function metaPanel(project, open) {
+  return `<details class="section" data-panel="meta"${open.meta ? ' open' : ''}><summary><h2>Project</h2></summary>
   <table class="grid-table"><tbody>
     <tr><th scope="row">Name</th><td colspan="3">${textInput({ key: 'name', value: project.name })}</td></tr>
     <tr><th scope="row">Date</th><td>${textInput({ key: 'date', value: project.date, type: 'date' })}</td>
@@ -77,7 +77,7 @@ function metaPanel(project) {
         <th scope="row">Edge trim</th><td class="num">${stepperInput({ key: 'params.edgeTrimIn', value: project.params.edgeTrimIn })}</td></tr>
     <tr><th scope="row">Notes</th><td colspan="3"><textarea rows="2" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea></td></tr>
   </tbody></table>
-</section>`;
+</details>`;
 }
 
 /**
@@ -131,15 +131,29 @@ function reorderCell(action, index, count, extra = '') {
   return `<td class="mid move"><span class="moves">${up}${down}</span></td>`;
 }
 
-function sheetRow(materialIndex, sheet, sheetIndex, uiState, sheetCount) {
+/**
+ * One row of the flat Sheets table.
+ *
+ * A sheet belongs to a material, and that link is a dropdown here exactly as it
+ * is on a part. The alternative, repeating the material's name as text on every
+ * row, means a typo silently splits one pile of plywood into two the packer
+ * treats as unrelated stock.
+ */
+function sheetRow(project, materialIndex, sheetIndex, uiState) {
+  const material = project.materials[materialIndex];
+  const sheet = material.sheets[sheetIndex];
   const preset = SHEET_PRESETS.find((p) => p.widthIn === sheet.widthIn && p.lengthIn === sheet.lengthIn);
   const mode = modeFor(uiState, sheet.id, preset === undefined ? 'custom' : 'preset');
   const options = SHEET_PRESETS
     .map((p) => option(p.id, p.label, mode === 'preset' && preset !== undefined && p.id === preset.id))
     .join('');
   const base = `materials.${materialIndex}.sheets.${sheetIndex}`;
+  const owners = project.materials
+    .map((m, i) => option(String(i), m.name === '' ? 'Unnamed' : m.name, i === materialIndex))
+    .join('');
+
   return `<tr>
-    ${reorderCell('move-sheet', sheetIndex, sheetCount, `data-material="${materialIndex}"`)}
+    <td><select data-action-select="move-sheet-to" data-material="${materialIndex}" data-sheet="${sheetIndex}">${owners}</select></td>
     <td><select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
     <td class="num">${stepperInput({ key: `${base}.widthIn`, value: sheet.widthIn })}</td>
     <td class="num">${stepperInput({ key: `${base}.lengthIn`, value: sheet.lengthIn })}</td>
@@ -149,42 +163,47 @@ function sheetRow(materialIndex, sheet, sheetIndex, uiState, sheetCount) {
   </tr>`;
 }
 
-function materialGroup(material, index, uiState, count) {
-  const groupName = material.name === '' ? 'this unnamed group' : `"${escapeHtml(material.name)}"`;
-
-  // The sheet sizes are drawn inside the group's own box with a rule down the
-  // side, so "these sizes belong to this material" is something you can see
-  // rather than something you have to work out from two Remove buttons.
-  return `<div class="group">
-    <div class="group-head">
-      <span class="moves">
-        <button type="button" class="row-move" data-action="move-material" data-dir="-1" data-index="${index}"${index === 0 ? ' disabled' : ''} aria-label="Move material up" title="Move up">&#9650;</button>
-        <button type="button" class="row-move" data-action="move-material" data-dir="1" data-index="${index}"${index === count - 1 ? ' disabled' : ''} aria-label="Move material down" title="Move down">&#9660;</button>
-      </span>
-      ${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}
-      ${thicknessControl(material, index, uiState)}
-      <button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove ${groupName} and every sheet size in it" aria-label="Remove ${groupName} and every sheet size in it">&times;</button>
-    </div>
-    <div class="group-sheets">
-      <h3>Sheets</h3>
-      <table class="grid-table">
-        <thead><tr>
-          <th class="mid"></th><th>Size</th><th class="num">Width</th><th class="num">Length</th>
-          <th class="num">On hand</th><th>Note</th><th></th>
-        </tr></thead>
-        <tbody>${material.sheets.map((sheet, i) => sheetRow(index, sheet, i, uiState, material.sheets.length)).join('')}</tbody>
-      </table>
-      <button type="button" class="add-row" data-action="add-sheet" data-material="${index}">+ Add sheet size</button>
-    </div>
-  </div>`;
+function materialRow(material, index, count, uiState) {
+  return `<tr>
+    ${reorderCell('move-material', index, count)}
+    <td>${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}</td>
+    <td>${thicknessControl(material, index, uiState)}</td>
+    <td class="mid"><button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove this material and every sheet of it" aria-label="Remove this material and every sheet of it">&times;</button></td>
+  </tr>`;
 }
 
-function materialsPanel(project, uiState) {
-  const groups = project.materials.map((m, i) => materialGroup(m, i, uiState, project.materials.length)).join('');
-  return `<section class="section" data-panel="materials"><h2>Material</h2>
-    ${groups}
+function materialsPanel(project, uiState, open) {
+  const materials = project.materials
+    .map((material, index) => materialRow(material, index, project.materials.length, uiState))
+    .join('');
+
+  // Every sheet in the project, flattened, so stock reads as one list rather
+  // than as something nested inside each material.
+  const sheets = project.materials
+    .flatMap((material, materialIndex) => material.sheets
+      .map((sheet, sheetIndex) => sheetRow(project, materialIndex, sheetIndex, uiState)))
+    .join('');
+
+  const noMaterials = project.materials.length === 0;
+
+  return `<details class="section" data-panel="materials"${open.materials ? ' open' : ''}><summary><h2>Material</h2></summary>
+    <table class="grid-table">
+      <thead><tr><th class="mid"></th><th>Name</th><th>Thickness</th><th></th></tr></thead>
+      <tbody>${materials}</tbody>
+    </table>
     <button type="button" class="add-row" data-action="add-material">+ Add material</button>
-  </section>`;
+
+    <h3 class="sub-head">Sheets on hand</h3>
+    <table class="grid-table">
+      <thead><tr>
+        <th>Material</th><th>Size</th><th class="num">Width</th><th class="num">Length</th>
+        <th class="num">On hand</th><th>Note</th><th></th>
+      </tr></thead>
+      <tbody>${sheets}</tbody>
+    </table>
+    <button type="button" class="add-row" data-action="add-sheet"${noMaterials ? ' disabled title="Add a material first"' : ''}>+ Add sheet</button>
+    <p class="muted hint">Set On hand to 0 for a size you still need to buy.</p>
+  </details>`;
 }
 
 /**
@@ -202,7 +221,7 @@ function sortHeader(key, label, sort, extraClass = '') {
     + ` aria-label="Sort by ${escapeHtml(label)}">${escapeHtml(label)}${arrow}</button></th>`;
 }
 
-function partsPanel(project, sort) {
+function partsPanel(project, sort, open) {
   const declared = new Set(project.materials.map((material) => material.id));
 
   // A part can belong to no group at all: added before the first group existed,
@@ -227,7 +246,7 @@ function partsPanel(project, sort) {
     <td class="mid"><button type="button" class="row-remove" data-action="remove-part" data-part="${index}" title="Remove this part" aria-label="Remove this part">&times;</button></td>
   </tr>`).join('');
 
-  return `<section class="section" data-panel="parts"><h2>Parts</h2>
+  return `<details class="section" data-panel="parts"${open.parts ? ' open' : ''}><summary><h2>Parts</h2></summary>
     <table class="grid-table">
       <thead><tr>
         <th class="mid"></th>
@@ -241,10 +260,16 @@ function partsPanel(project, sort) {
       <tbody>${rows}</tbody>
     </table>
     <button type="button" class="add-row" data-action="add-part">+ Add part</button>
-  </section>`;
+  </details>`;
 }
 
-export function renderForms(project, uiState, sort = null) {
-  return metaPanel(project)
-    + materialsPanel(project, uiState) + partsPanel(project, sort);
+/**
+ * `open` says which sections are expanded, so the state survives the re-render
+ * that follows every keystroke. Project is closed by default: it is filled in
+ * once and then rarely looked at, and it was taking the top of the column to
+ * say nothing.
+ */
+export function renderForms(project, uiState, sort = null, open = { meta: false, materials: true, parts: true }) {
+  return metaPanel(project, open)
+    + materialsPanel(project, uiState, open) + partsPanel(project, sort, open);
 }

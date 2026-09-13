@@ -561,3 +561,8 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 
 .sheet-step:hover { border-color: var(--accent); color: var(--accent); }
 .sheet-step.is-off { opacity: .35; }
+
+.sub-head { margin: 16px 0 6px; font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); }
+.hint { margin: 6px 0 0; font-size: .8rem; }
+.add-row:disabled { opacity: .45; cursor: default; }
+.add-row:disabled:hover { border-color: var(--line); color: var(--ink-soft); }

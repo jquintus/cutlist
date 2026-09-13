@@ -14,7 +14,6 @@
       "name": "1/2 in plywood",
       "thicknessIn": 0.5,
       "thicknessLabel": "1/2 in",
-      "note": "",
       "color": "#2f6f9f",
       "sheets": [
         {
@@ -32,7 +31,6 @@
       "name": "1/4 in plywood (6 mm substitute)",
       "thicknessIn": 0.25,
       "thicknessLabel": "1/4 in",
-      "note": "The 6 mm parts are cut from this 1/4 in sheet, the standard US substitute for 6 mm. That substitution is a decision recorded here, not something the tool works out.",
       "color": "#b1591f",
       "sheets": [
         {
@@ -50,7 +48,6 @@
       "name": "3/4 in plywood",
       "thicknessIn": 0.75,
       "thicknessLabel": "3/4 in",
-      "note": "",
       "color": "#3f7f4f",
       "sheets": [
         {

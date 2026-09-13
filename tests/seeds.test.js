@@ -71,12 +71,6 @@ for (const file of SEEDS) {
     assert.equal(group.buySpec.lengthIn, 96);
   });
 
-  test(`${file} records the 6 mm substitution in the material note, not in code`, async () => {
-    const project = await loadSeed(file);
-    const quarter = project.materials.find((material) => material.name.includes('1/4 in'));
-    assert.match(quarter.note, /6 mm/);
-  });
-
   test(`${file} carries its miter bars and lays none of them out`, async () => {
     const plan = planProject(await loadSeed(file));
     assert.ok(plan.unplanned.length >= 1);

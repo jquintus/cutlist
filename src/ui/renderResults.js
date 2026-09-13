@@ -109,7 +109,6 @@ function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
 }
 
 function materialSection(plan, materialPlan, view) {
-  const noteHtml = materialPlan.note ? `<p class="muted">${escapeHtml(materialPlan.note)}</p>` : '';
   const onHand = `<p class="muted">${escapeHtml(materialPlan.onHandSheetCount)} sheet(s) on hand, ${escapeHtml(materialPlan.sheets.length)} laid out.</p>`;
 
   const system = plan.displaySystem ?? 'imperial';
@@ -119,7 +118,7 @@ function materialSection(plan, materialPlan, view) {
 
   return `<section class="material-section">
     <h2>${escapeHtml(materialPlan.name)}${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>
-    ${noteHtml}${buyBanner(materialPlan)}${onHand}
+    ${buyBanner(materialPlan)}${onHand}
     <div class="sheets">${sheets}</div>
   </section>`;
 }

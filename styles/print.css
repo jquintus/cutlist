@@ -75,12 +75,26 @@
   .parts li, .buy-list li { padding: 0; }
   .sheet-todo-title { font-size: 8pt; }
 
-  /* No color may carry meaning. A part is its label; a cut is its number. */
+  /* Actually black and white.
+   *
+   * The part fills are presentation attributes on each rect, which a print
+   * stylesheet can override because a CSS rule outranks an attribute. Without
+   * this the diagram printed in full color on a color printer and as muddy
+   * gray blocks on a mono one, with white label text vanishing into both.
+   * Every part is an outlined rectangle with black text, and a part is told
+   * apart by its printed label, never by its fill. */
+  .cut-rect { fill: #fff !important; stroke: #000 !important; }
+  .cut-label { fill: #000 !important; }
+  .cut-dims { fill: #000 !important; }
+  .sheet-usable { stroke: #666 !important; }
   .cut-line { stroke: #000 !important; stroke-dasharray: 4 3 !important; }
   .cut-line.is-active { stroke: #000 !important; stroke-width: inherit !important; }
   .cut-step-no, .cut-step-no.is-active { fill: #000 !important; stroke: #fff !important; }
-  .cut-label { fill: #fff !important; }
   .scrap-label { fill: #333 !important; }
+
+  /* Some browsers print backgrounds and some do not; nothing here should
+     depend on which, so no background is allowed to carry meaning. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   a { color: #000; }
   a[href]::after { content: ""; }

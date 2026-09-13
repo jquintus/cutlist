@@ -47,6 +47,17 @@ const store = createProjectStore(newProject());
 // and the manual move controls go on working on the same array.
 let partsSort = null;
 
+// Which input sections are expanded. Read back off the DOM before each render,
+// because the whole form is rebuilt on every keystroke and a section that
+// collapsed itself mid-edit would be worse than not collapsing at all.
+const openSections = { meta: false, materials: true, parts: true };
+
+function readOpenSections() {
+  for (const panel of document.querySelectorAll('[data-panel]')) {
+    if (panel.dataset.panel in openSections) openSections[panel.dataset.panel] = panel.open === true;
+  }
+}
+
 // The save this project is currently attached to, or null when it has never
 // been saved. Save falls through to Save As while this is null.
 
@@ -134,7 +145,8 @@ function render() {
   const checked = validateProject(project);
   const plan = planProject(project);
 
-  el.forms.innerHTML = renderForms(project, uiState, partsSort);
+  readOpenSections();
+  el.forms.innerHTML = renderForms(project, uiState, partsSort, openSections);
   // The base link travels in with the rest of the presentation state: the
   // results renderer stays free of the DOM so the whole surface can be
   // exercised under node --test, which is what caught this.
@@ -425,13 +437,13 @@ const ACTIONS = {
   'remove-material': (draft, dataset) => {
     draft.materials.splice(Number(dataset.material), 1);
   },
-  'add-sheet': (draft, dataset) => {
-    const material = draft.materials[Number(dataset.material)];
+  'add-sheet': (draft) => {
+    const material = draft.materials[0];
+    if (material === undefined) return;
     material.sheets.push({
       id: mintId(`${material.id}s`, material.sheets.length + 1),
-      // The note is the person's own, for things like where a sheet came from.
-      // Seeding it with the size is content nobody typed, and the size is
-      // already in the two columns beside it.
+      // Empty note: sheetLabel() falls back to the sheet's own dimensions for
+      // the heading, so nothing is lost by not inventing one.
       label: '',
       widthIn: 48,
       lengthIn: 96,
@@ -439,41 +451,15 @@ const ACTIONS = {
       note: '',
     });
   },
-  // Swapping a sheet spec's two dimensions is a real project edit: it goes
-  // through update() like any other, so the packer reruns and the plan changes.
-  // The view-only rotate below is a different control entirely and touches
-  // nothing here.
-  'rotate-sheet': (draft, dataset) => {
-    const sheet = draft.materials[Number(dataset.material)].sheets[Number(dataset.sheet)];
-    resizeSheet(sheet, () => {
-      [sheet.widthIn, sheet.lengthIn] = [sheet.lengthIn, sheet.widthIn];
-    });
-    syncSheetSizeMode(sheet);
+  // Changing a sheet's material moves it between the two lists. The sheet keeps
+  // its id, so a control mode set on it follows it across.
+  'move-sheet-to': (draft, dataset) => {
+    const from = Number(dataset.material);
+    const to = Number(dataset.value);
+    if (from === to || Number.isNaN(to) || draft.materials[to] === undefined) return;
+    const [moved] = draft.materials[from].sheets.splice(Number(dataset.sheet), 1);
+    draft.materials[to].sheets.push(moved);
   },
-  // Reordering. The list a person builds is their own, and its order carries
-  // through to the cut list and the parts checklist, so it has to be editable
-  // after the fact. A move that would run off either end is a no-op rather than
-  // an error: the buttons are disabled there, and a keyboard can still reach
-  // them for a moment during a re-render.
-  'sort-parts': (draft, dataset) => {
-    const key = dataset.key;
-    partsSort = { key, dir: partsSort?.key === key && partsSort.dir === 1 ? -1 : 1 };
-    const dir = partsSort.dir;
-    // Material sorts by the group's position, not by its id, so the order on
-    // screen matches the order the materials are listed in above.
-    const rank = (part) => (key === 'materialId'
-      ? draft.materials.findIndex((material) => material.id === part.materialId)
-      : part[key]);
-    draft.parts.sort((a, b) => {
-      const left = rank(a);
-      const right = rank(b);
-      if (typeof left === 'number' && typeof right === 'number') return (left - right) * dir;
-      return String(left).localeCompare(String(right), undefined, { numeric: true }) * dir;
-    });
-  },
-  'move-part': (draft, dataset) => moveWithin(draft.parts, dataset),
-  'move-material': (draft, dataset) => moveWithin(draft.materials, dataset),
-  'move-sheet': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].sheets, dataset),
   'remove-sheet': (draft, dataset) => {
     draft.materials[Number(dataset.material)].sheets.splice(Number(dataset.sheet), 1);
   },
@@ -638,6 +624,13 @@ function onFieldEvent(event) {
   if (fieldPath) applyFieldChange(fieldPath, event.target);
 }
 
+el.forms.addEventListener('change', (event) => {
+  const picker = event.target.closest?.('[data-action-select]');
+  if (!picker) return;
+  const action = ACTIONS[picker.dataset.actionSelect];
+  if (action) update((draft) => action(draft, { ...picker.dataset, value: picker.value }));
+});
+
 el.forms.addEventListener('input', onFieldEvent);
 el.forms.addEventListener('change', onFieldEvent);
 
@@ -704,6 +697,15 @@ shareButton.addEventListener('click', () => copyShareLink(shareButton));
 // handler is what would take that choice away.
 
 document.getElementById('btn-open').addEventListener('click', () => el.openDialog.showModal());
+
+// A PDF is the browser's own print dialog with "Save as PDF" as the
+// destination, so this opens that rather than pretending to be a second thing.
+// It lives in the menu, not in the header: Ctrl+P already does it, and a
+// dedicated button was taking a third of the width at the top of the page.
+document.getElementById('btn-pdf').addEventListener('click', () => {
+  setStatus('Choose "Save as PDF" as the destination in the print dialog.');
+  window.print();
+});
 
 document.getElementById('btn-export').addEventListener('click', () => {
   // A file this build would refuse to import is not a backup of anything, so

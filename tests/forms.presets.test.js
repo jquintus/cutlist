@@ -79,17 +79,19 @@ test('the thickness control is one control: Other reveals the measurement box', 
   assert.ok(custom.includes('data-field="materials.0.thicknessIn"'));
 });
 
-test('the sheets of a group are nested inside their own labeled box', () => {
+test('sheets are their own table, with the material chosen per row', () => {
   const html = renderForms(project(), new Map());
-  // The sheets live in the group's own box behind a left rule, with their own
-  // heading, so the nesting is something you can see.
-  assert.match(html, /<div class="group-sheets">\s*<h3>Sheets<\/h3>/);
+  // Stock is one flat list. A sheet says which material it is through the same
+  // kind of dropdown a part uses, so a typed name can never split one pile of
+  // plywood into two the packer treats as unrelated.
+  assert.match(html, /<h3 class="sub-head">Sheets on hand<\/h3>/);
+  assert.match(html, /data-action-select="move-sheet-to"/);
 });
 
 test('a destructive button says what it will destroy', () => {
   const html = renderForms(project(), new Map());
   assert.ok(html.includes('title="Remove this 48 x 96 sheet"'));
-  assert.ok(html.includes('and every sheet size in it'), 'the group control does not say it takes the sheets too');
+  assert.ok(html.includes('and every sheet of it'), 'the material control does not say it takes the sheets too');
 });
 
 test('a hostile group name cannot break out of a destructive label', () => {
