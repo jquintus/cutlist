@@ -190,18 +190,26 @@ function overlaps(a, b) {
  * measurement is taken from rather than at its midpoint: an edge dimension is
  * centered on its own edge, and a cut line very often runs exactly along one.
  */
-function stepNumberMarks(sheetPlan, scale, system) {
+function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
   const size = Math.max(0.6, scale / 28);
   return sheetPlan.cuts.map((step) => {
     const acrossX = step.axis === 'v';
-    const x = acrossX ? step.lineIn + size * 0.7 : step.fromIn + size;
-    const y = acrossX ? step.fromIn + size : step.lineIn - size * 0.5;
     // The measurement rides with the step number, on the line it belongs to.
     // A part's own dimensions are already on the parts list; what cannot be
     // read anywhere else is where the saw goes, and that is a property of the
     // line, not of the box beside it.
     const text = `${step.seq}. ${formatLength(step.atIn, system)}`;
     const width = textWidth(text, size) + 2 * size * MARK_PAD;
+
+    // The label is centered on its anchor, so a cut that starts at an edge puts
+    // half the text outside the viewBox and the browser simply clips it: "2. 25
+    // 1/2 in" arrived reading "5 1/2 in". Nudge the anchor back inside by
+    // however much hangs over, which moves the label along its own line rather
+    // than away from it.
+    const clamp = (value, half, limit) => Math.min(Math.max(value, half), Math.max(half, limit - half));
+    const x = clamp(acrossX ? step.lineIn + size * 0.7 : step.fromIn + size, width / 2, widthIn);
+    const y = clamp(acrossX ? step.fromIn + size : step.lineIn - size * 0.5, size, lengthIn);
+
     return {
       step,
       text,
@@ -333,7 +341,7 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
   const key = sheetKey(materialPlan, sheetPlan, materialPlan.sheets.indexOf(sheetPlan));
 
   const colors = colorsForSheet(sheetPlan.placements);
-  const marks = stepNumberMarks(sheetPlan, scale, system);
+  const marks = stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn);
   const blocks = sheetPlan.placements.map((placement) => {
     // A part carries its name and nothing else. Its size is on the parts list
     // beside the diagram, and writing it along the edges put faint text over a
