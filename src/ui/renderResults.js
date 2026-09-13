@@ -10,15 +10,6 @@ import { formatLength } from '../units.js';
 import { sheetSvg } from './renderDiagram.js';
 import { sheetCutListHtml, sheetKey, sourceLabel } from './renderTable.js';
 
-function unplannedSection(plan) {
-  if (plan.unplanned.length === 0) return '';
-  const items = plan.unplanned.map((item) => `<li><strong>${escapeHtml(item.name)}</strong>`
-    + ` &times; ${escapeHtml(item.qty)}${item.note ? `. ${escapeHtml(item.note)}` : ''}</li>`).join('');
-  return `<section class="unplanned"><h2>Not planned in this version</h2>
-    <p>These are carried with the project but are not sheet goods, so nothing below lays them out. Cut them from board stock yourself.</p>
-    <ul>${items}</ul></section>`;
-}
-
 function warningsSection(plan) {
   if (plan.warnings.length === 0) return '';
   const items = plan.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
@@ -77,12 +68,19 @@ function materialSection(plan, materialPlan, view) {
       : '';
     // Diagram and to-do list in one block, so a sheet and its steps stay
     // together on screen and on paper.
-    return `<article class="sheet-block">
+    return `<article class="sheet">
       <h3>${escapeHtml(sheetPlan.label)} <span class="muted">(${sourceLabel(sheetPlan.source)})</span></h3>
-      <div class="sheet-view${turned}">${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
-      ${rotatedNotice}
-      <div class="row no-print"><button class="secondary" type="button" data-action="rotate-view" data-sheet="${escapeHtml(key)}">&#8635; Rotate view</button></div>
-      ${sheetCutListHtml(sheetPlan, materialPlan, system, index)}
+      <div class="sheet-grid">
+        <div class="sheet-figure">
+          <div class="sheet-view${turned}">${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
+          ${rotatedNotice}
+          <div class="figure-tools no-print">
+            <button type="button" data-action="rotate-view" data-sheet="${escapeHtml(key)}" title="Turn the picture only. The cuts do not change.">&#8635; Turn picture</button>
+            <button type="button" data-action="rotate-sheet" data-material="${materialPlan.materialIndex}" data-sheet-index="${index}" title="Lay the sheet the other way and work out the cuts again.">&#8644; Repack ${escapeHtml(sheetPlan.lengthIn)} x ${escapeHtml(sheetPlan.widthIn)}</button>
+          </div>
+        </div>
+        <div class="sheet-steps">${sheetCutListHtml(sheetPlan, materialPlan, system, index)}</div>
+      </div>
     </article>`;
   }).join('');
 
@@ -107,7 +105,7 @@ export function renderResults(plan, view = {}) {
   const system = plan.displaySystem ?? 'imperial';
   const anySheets = plan.materials.some((materialPlan) => materialPlan.sheets.length > 0);
   if (!anySheets) {
-    return notesSection(plan) + warningsSection(plan) + unplannedSection(plan)
+    return notesSection(plan) + warningsSection(plan)
       + '<p class="muted">Add a material group and some parts to see a layout.</p>';
   }
 
@@ -117,5 +115,5 @@ export function renderResults(plan, view = {}) {
   const materials = plan.materials.map((materialPlan) => materialSection(plan, materialPlan, view)).join('');
 
   return notesSection(plan) + warningsSection(plan) + shoppingListSection(plan, system)
-    + settings + materials + unplannedSection(plan);
+    + settings + materials;
 }

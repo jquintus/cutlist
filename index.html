@@ -9,60 +9,43 @@
 </head>
 <body>
 <header class="app-head">
-  <div class="head-row">
-    <h1 id="project-name">cutlist</h1>
-    <div class="menu">
-      <button id="btn-menu" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-body">Menu</button>
-      <div class="menu-body" id="menu-body" role="menu" hidden>
-        <button id="btn-new" type="button" role="menuitem">New</button>
-        <button id="btn-open" type="button" role="menuitem">Open&hellip;</button>
-        <button id="btn-save" type="button" role="menuitem">Save</button>
-        <button id="btn-save-as" type="button" role="menuitem">Save As&hellip;</button>
-        <hr />
-        <button id="btn-share" type="button" role="menuitem">Copy share link</button>
-        <button id="btn-export" type="button" role="menuitem">Export JSON</button>
-        <button id="btn-import" type="button" role="menuitem">Import JSON</button>
-        <a id="link-upload" role="menuitem" href="https://github.com">Save to GitHub</a>
-      </div>
+  <h1 id="project-name">cutlist</h1>
+  <div class="menu">
+    <button id="btn-menu" type="button" class="icon-button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-body" aria-label="Menu">
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+        <path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+      </svg>
+    </button>
+    <div class="menu-body" id="menu-body" role="menu" hidden>
+      <button id="btn-new" type="button" role="menuitem">New project</button>
+      <button id="btn-open" type="button" role="menuitem">Open example&hellip;</button>
+      <hr />
+      <button id="btn-share" type="button" role="menuitem">Copy share link</button>
+      <button id="btn-export" type="button" role="menuitem">Export JSON</button>
+      <button id="btn-import" type="button" role="menuitem">Import JSON</button>
+      <a id="link-upload" role="menuitem" href="https://github.com">Save to GitHub</a>
     </div>
   </div>
-  <p class="muted">Plywood in, a guillotine cut plan out. Check every measurement before you cut.</p>
-  <p id="status" class="muted"></p>
-  <input id="import-file" type="file" accept="application/json,.json" hidden />
 </header>
+
+<p id="status" class="status" role="status"></p>
+<input id="import-file" type="file" accept="application/json,.json" hidden />
 
 <dialog id="dialog-open">
   <form method="dialog">
-    <h2>Open a project</h2>
+    <h2>Open an example project</h2>
     <label for="project-picker">Projects in this build</label>
     <select id="project-picker"><option value="">Loading&hellip;</option></select>
     <p id="picker-status" class="muted"></p>
-    <label for="local-picker">Saved in this browser</label>
-    <select id="local-picker"><option value="">Nothing saved here yet</option></select>
-    <p id="dialog-status" class="muted"></p>
     <div class="row"><button value="cancel">Close</button></div>
   </form>
 </dialog>
 
-<dialog id="dialog-save-as">
-  <!-- Save is listed before Cancel on purpose: a form with method="dialog"
-       submits via its first submit button when Enter is pressed in a text
-       field, so this order is what makes Enter in the name field save rather
-       than cancel. Do not reorder these. -->
-  <form method="dialog">
-    <h2>Save project as</h2>
-    <label for="save-as-name">Project name</label>
-    <input id="save-as-name" type="text" autocomplete="off" />
-    <div class="row">
-      <button value="save">Save</button>
-      <button value="cancel">Cancel</button>
-    </div>
-  </form>
-</dialog>
 
-<main>
-  <div id="results"></div>
-  <div id="forms"></div>
+
+<main class="workspace">
+  <section class="inputs" id="forms" aria-label="Project input"></section>
+  <section class="results" id="results" aria-label="Cut plan"></section>
 </main>
 
 <script type="importmap">
@@ -71,7 +54,6 @@
     "./src/config.js": "./src/config.js?v=4cc213563da9",
     "./src/geometry.js": "./src/geometry.js?v=2d6e8cafbd4d",
     "./src/io/importExport.js": "./src/io/importExport.js?v=cf61ee89db7e",
-    "./src/io/projectStorage.js": "./src/io/projectStorage.js?v=db16ffe38f6b",
     "./src/io/projects.js": "./src/io/projects.js?v=b3c001e7a931",
     "./src/io/validate.js": "./src/io/validate.js?v=2ce8fd21144f",
     "./src/model.js": "./src/model.js?v=4a6f6345648f",
@@ -80,22 +62,22 @@
     "./src/packer/index.js": "./src/packer/index.js?v=016e9a00362e",
     "./src/packer/invariants.js": "./src/packer/invariants.js?v=c79320fde4c0",
     "./src/packer/strategies.js": "./src/packer/strategies.js?v=d6cccc354d9a",
-    "./src/plan.js": "./src/plan.js?v=c400a0705906",
+    "./src/plan.js": "./src/plan.js?v=493262f55be1",
     "./src/share/codec.js": "./src/share/codec.js?v=421e4f382eab",
     "./src/share/upload.js": "./src/share/upload.js?v=adb1fa563519",
-    "./src/ui/app.js": "./src/ui/app.js?v=48636d478595",
+    "./src/ui/app.js": "./src/ui/app.js?v=883b89e0e74d",
     "./src/ui/debounce.js": "./src/ui/debounce.js?v=488c05aa6d77",
     "./src/ui/escape.js": "./src/ui/escape.js?v=78da46510edd",
     "./src/ui/numericEntry.js": "./src/ui/numericEntry.js?v=b4affe235165",
     "./src/ui/renderDiagram.js": "./src/ui/renderDiagram.js?v=b554f7396d2c",
-    "./src/ui/renderForms.js": "./src/ui/renderForms.js?v=7d1c2e547e32",
-    "./src/ui/renderResults.js": "./src/ui/renderResults.js?v=af1d03b304f9",
-    "./src/ui/renderTable.js": "./src/ui/renderTable.js?v=2d950855ffd6",
+    "./src/ui/renderForms.js": "./src/ui/renderForms.js?v=837541ca09ee",
+    "./src/ui/renderResults.js": "./src/ui/renderResults.js?v=aa52d05f2cbd",
+    "./src/ui/renderTable.js": "./src/ui/renderTable.js?v=9d0cc48ee56b",
     "./src/units.js": "./src/units.js?v=3c6a6d48f16f",
     "./vendor/pako.esm.min.mjs": "./vendor/pako.esm.min.mjs?v=6e4f36b9dbe5"
   }
 }
 </script>
-<script type="module" src="src/ui/app.js?v=48636d478595"></script>
+<script type="module" src="src/ui/app.js?v=883b89e0e74d"></script>
 </body>
 </html>

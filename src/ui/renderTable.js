@@ -72,6 +72,8 @@ export function sheetRows(
       seq: step.seq,
       cutKind: step.kind,
       measurement: formatLength(step.atIn, system),
+      referenceEdge: step.referenceEdge,
+      frees: step.frees,
       note: step.note,
     });
   }
@@ -116,8 +118,17 @@ export function cutListRows(plan) {
 }
 
 function cutItemHtml(row) {
+  // The measurement comes first because it is the only thing needed at the
+  // saw. Leading every line with "Rip" or "Crosscut" put a word nobody reads
+  // in front of the number everybody does, and naming the piece a cut came
+  // from ("the bottom piece from step 5") described the tree rather than the
+  // job. The diagram carries the same step number, so which piece is which is
+  // something you look at rather than something you parse.
+  const frees = row.frees === '' ? ''
+    : ` <span class="frees">${escapeHtml(row.frees.replace(/^Frees /, ''))}</span>`;
   return `<li data-step="${row.seq}" data-sheet="${escapeHtml(row.sheetKey)}">`
-    + `${escapeHtml(row.note)}</li>`;
+    + `<span class="measure">${escapeHtml(row.measurement)}</span>`
+    + ` <span class="from">from ${escapeHtml(row.referenceEdge)}</span>${frees}</li>`;
 }
 
 function partItemHtml(row) {

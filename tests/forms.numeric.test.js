@@ -58,17 +58,33 @@ test('every measurement field offers a decimal keypad', () => {
   }
 });
 
-test('counts get a whole-number keypad, not a decimal one', () => {
+// A count is a whole number, so it can be a real number input with the
+// browser's own spinner. A measurement cannot: a number input rejects the
+// fraction forms this app prints and a woodworker types.
+test('counts are real number inputs with a step, not free text', () => {
   const html = formsHtml();
   for (const field of ['materials.0.sheets.0.qty', 'parts.0.qty']) {
-    assert.match(inputFor(html, field), /inputmode="numeric"/, field);
+    const input = inputFor(html, field);
+    assert.match(input, /type="number"/, field);
+    assert.match(input, /step="1"/, field);
   }
 });
 
-test('every numeric field is marked so the typed text is preserved across a redraw', () => {
+test('every measurement field is marked so the typed text is preserved across a redraw', () => {
   const html = formsHtml();
-  for (const field of [...MEASUREMENT_FIELDS, 'materials.0.sheets.0.qty', 'parts.0.qty']) {
+  for (const field of MEASUREMENT_FIELDS) {
     assert.match(inputFor(html, field), /data-numeric="true"/, field);
+  }
+});
+
+// The spinner is what makes a measurement nudgeable without giving up the
+// fraction entry a number input would forbid.
+test('every measurement field carries nudge buttons', () => {
+  const html = formsHtml();
+  const rendered = MEASUREMENT_FIELDS.filter((field) => html.includes(`data-field="${field}"`));
+  assert.ok(rendered.length > 0, 'fixture rendered no measurement fields');
+  for (const field of rendered) {
+    assert.match(html, new RegExp(`data-step-for="${field.replace(/[.]/g, '\\.')}"`), field);
   }
 });
 

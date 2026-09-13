@@ -17,7 +17,6 @@ import { validatePlan } from '../packer/invariants.js';
 import { validateProject } from '../io/validate.js';
 import { createProjectStore, exportProjectJson, readProjectJson, checkReadsBack } from '../io/importExport.js';
 import { loadProjectIndex, loadProjectFile } from '../io/projects.js';
-import { createProjectStorage, slugFor } from '../io/projectStorage.js';
 import { encodeProject, decodeHash } from '../share/codec.js';
 import { directUpload } from '../share/upload.js';
 import { THICKNESS_PRESETS, SHEET_PRESETS, thicknessLabelFor } from '../units.js';
@@ -42,21 +41,15 @@ const HASH_WRITE_DEBOUNCE_MS = 400;
 // invented name. Anything pre-filled here is content somebody has to notice
 // and delete before their own project is right.
 const store = createProjectStore(newProject());
-const projects = createProjectStorage();
 
 // The save this project is currently attached to, or null when it has never
 // been saved. Save falls through to Save As while this is null.
-let currentSlug = null;
 
 const el = {
   projectName: document.getElementById('project-name'),
   picker: document.getElementById('project-picker'),
   pickerStatus: document.getElementById('picker-status'),
-  localPicker: document.getElementById('local-picker'),
-  dialogStatus: document.getElementById('dialog-status'),
   openDialog: document.getElementById('dialog-open'),
-  saveAsDialog: document.getElementById('dialog-save-as'),
-  saveAsName: document.getElementById('save-as-name'),
   uploadLink: document.getElementById('link-upload'),
   forms: document.getElementById('forms'),
   results: document.getElementById('results'),
@@ -244,21 +237,6 @@ function setActiveStep(sheet, seq) {
   activeStep = { sheet, seq };
 }
 
-el.results.addEventListener('mouseover', (event) => {
-  const target = stepElementFrom(event.target);
-  if (target) setActiveStep(target.dataset.sheet, target.dataset.step);
-});
-
-el.results.addEventListener('mouseout', (event) => {
-  const target = stepElementFrom(event.target);
-  if (target === null) return;
-  // Moving between the number and its own line is not leaving the step.
-  const next = stepElementFrom(event.relatedTarget);
-  if (next !== null && next.dataset.sheet === target.dataset.sheet
-    && next.dataset.step === target.dataset.step) return;
-  clearActiveStep();
-});
-
 el.results.addEventListener('click', (event) => {
   const rotate = event.target.closest?.('[data-action="rotate-view"]');
   if (rotate) {
@@ -267,8 +245,23 @@ el.results.addEventListener('click', (event) => {
     renderResultsOnly();
     return;
   }
+
+  const repack = event.target.closest?.('[data-action="rotate-sheet"]');
+  if (repack) {
+    update((draft) => ACTIONS['rotate-sheet'](draft, { material: repack.dataset.material, sheet: repack.dataset.sheetIndex }));
+    return;
+  }
+
   const target = stepElementFrom(event.target);
-  if (target) setActiveStep(target.dataset.sheet, target.dataset.step);
+  if (target === null) {
+    clearActiveStep();
+    return;
+  }
+  const same = activeStep !== null
+    && activeStep.sheet === target.dataset.sheet
+    && String(activeStep.seq) === String(target.dataset.step);
+  if (same) clearActiveStep();
+  else setActiveStep(target.dataset.sheet, target.dataset.step);
 });
 
 // ---------------------------------------------------------------------------
@@ -499,9 +492,9 @@ function updateUploadLink(project) {
 }
 
 // ---------------------------------------------------------------------------
-// Projects: New, Open, Save, Save As
+// Projects: New, Open an example, and the file and URL round trips.
 
-function loadProject(project, slug) {
+function loadProject(project) {
   // Both are this browser's own leftover display state, not this project's.
   // Left in place, a control mode or a rotated diagram from the project just
   // closed could carry into the one just opened -- including a sheet-size
@@ -510,35 +503,9 @@ function loadProject(project, slug) {
   uiState.clear();
   view.rotated = {};
   store.load(project);
-  currentSlug = slug;
-  if (slug !== null) projects.setLastOpened(slug);
   render();
 }
 
-function saveTo(slug, button) {
-  const result = projects.write(slug, store.current);
-  if (!result.ok) {
-    // The project is untouched and still on screen, so it is still fixable --
-    // but only by someone who has been told what is wrong with it.
-    setStatus(result.message, 'error');
-    flashLabel(button, 'Not saved');
-    return;
-  }
-  currentSlug = slug;
-  projects.setLastOpened(slug);
-  flashLabel(button, 'Saved');
-}
-
-function openSaveAsDialog() {
-  el.saveAsName.value = store.current.name;
-  // A <dialog> that closes without an explicit result (Escape included) keeps
-  // whatever returnValue its last close left behind rather than clearing it.
-  // Left alone, checking the name here and backing out with Escape would reuse
-  // the 'save' from a previous, real save and quietly save again -- canceling
-  // must never do that.
-  el.saveAsDialog.returnValue = '';
-  el.saveAsDialog.showModal();
-}
 
 async function populatePicker() {
   const result = await loadProjectIndex();
@@ -550,30 +517,15 @@ async function populatePicker() {
   el.pickerStatus.textContent = result.ok ? '' : result.message;
 }
 
-function populateLocalPicker() {
-  const saves = projects.list();
-  const last = projects.lastOpened();
-  const options = saves.length === 0
-    ? ['<option value="">Nothing saved in this browser yet</option>']
-    : ['<option value="">Pick a saved project</option>', ...saves.map((entry) => {
-      // Named rather than preselected: preselecting an option means picking it
-      // again fires no change event and the click appears to do nothing.
-      const suffix = entry.slug === last ? ' (last opened)' : '';
-      return `<option value="${escapeHtml(entry.slug)}">${escapeHtml(entry.name)}${suffix}</option>`;
-    })];
-  el.localPicker.innerHTML = options.join('');
-}
-
 async function openIndexedProject(file) {
   if (file === '') return;
   const result = await loadProjectFile(file);
   if (!result.ok) {
-    el.dialogStatus.textContent = result.message;
     return;
   }
   // An in-repo project is not attached to a local save: saving it should ask
   // where to put it rather than silently overwriting something.
-  loadProject(result.project, null);
+  loadProject(result.project);
   el.openDialog.close();
   // A <select> that fires only on an actual value change never notices a
   // repeated pick of the option already showing, so choosing the same
@@ -581,17 +533,6 @@ async function openIndexedProject(file) {
   // did nothing. Clearing the value here makes the next pick of it, however
   // soon, a real change again.
   el.picker.value = '';
-}
-
-function openLocalProject(slug) {
-  if (slug === '') return;
-  const result = projects.read(slug);
-  if (!result.ok) {
-    el.dialogStatus.textContent = result.message;
-    return;
-  }
-  loadProject(result.project, slug);
-  el.openDialog.close();
 }
 
 // ---------------------------------------------------------------------------
@@ -606,6 +547,22 @@ function onFieldEvent(event) {
 
 el.forms.addEventListener('input', onFieldEvent);
 el.forms.addEventListener('change', onFieldEvent);
+
+// The nudge buttons beside a measurement. They read the field's stored value
+// rather than the box's text, so a half-typed entry is never stepped into
+// something nobody meant.
+el.forms.addEventListener('click', (event) => {
+  const step = event.target.closest?.('.step');
+  if (!step) return;
+  event.preventDefault();
+  const key = step.dataset.stepFor;
+  const by = Number(step.dataset.step);
+  update((draft) => {
+    const current = Number(getPath(draft, key));
+    const base = Number.isFinite(current) ? current : 0;
+    setPath(draft, key, Math.max(0, Math.round((base + by) * 10000) / 10000));
+  });
+});
 
 el.forms.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action]');
@@ -648,42 +605,11 @@ document.addEventListener('keydown', (event) => {
 
 shareButton.addEventListener('click', () => copyShareLink(shareButton));
 
-document.getElementById('btn-new').addEventListener('click', () => loadProject(newProject(), null));
+document.getElementById('btn-new').addEventListener('click', () => loadProject(newProject()));
 
 document.getElementById('btn-open').addEventListener('click', () => {
-  el.dialogStatus.textContent = '';
   populateLocalPicker();
   el.openDialog.showModal();
-});
-
-const saveButton = document.getElementById('btn-save');
-saveButton.addEventListener('click', () => {
-  if (currentSlug === null) {
-    openSaveAsDialog();
-    return;
-  }
-  saveTo(currentSlug, saveButton);
-});
-
-document.getElementById('btn-save-as').addEventListener('click', openSaveAsDialog);
-
-el.saveAsDialog.addEventListener('close', () => {
-  if (el.saveAsDialog.returnValue !== 'save') return;
-  const name = el.saveAsName.value.trim();
-  const slug = slugFor(name);
-  // A slug collapses case, spacing and punctuation, so two names that read as
-  // different to a person can land on the same saved entry. Saving over one
-  // that is not the project already open here would discard it with no
-  // warning, so ask before that happens rather than after.
-  if (slug !== currentSlug) {
-    const collision = projects.read(slug);
-    if (collision.ok) {
-      const proceed = confirm(`A project named "${collision.project.name || slug}" is already saved in this browser. Save over it?`);
-      if (!proceed) return;
-    }
-  }
-  update((draft) => { draft.name = name; });
-  saveTo(slug, saveButton);
 });
 
 document.getElementById('btn-export').addEventListener('click', () => {
@@ -713,13 +639,12 @@ el.importFile.addEventListener('change', async (event) => {
     setStatus(result.message, 'error');
   } else {
     // An imported file is not attached to a local save either.
-    loadProject(result.project, null);
+    loadProject(result.project);
   }
   event.target.value = '';
 });
 
 el.picker.addEventListener('change', (event) => openIndexedProject(event.target.value));
-el.localPicker.addEventListener('change', (event) => openLocalProject(event.target.value));
 
 // ---------------------------------------------------------------------------
 // Start up. A share link in the fragment wins over anything the picker offers,

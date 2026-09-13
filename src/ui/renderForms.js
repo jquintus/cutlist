@@ -47,28 +47,37 @@ function numericInput({ key, value, keypad = 'decimal' }) {
     + ` value="${escapeHtml(value)}" />`;
 }
 
-function metaPanel(project) {
-  return `<details class="panel" data-panel="meta"><summary>Project</summary><div class="panel-body">
-  <div class="row">
-    ${field('Name', textInput({ key: 'name', value: project.name }))}
-    ${field('Date', textInput({ key: 'date', value: project.date, type: 'date' }))}
-  </div>
-  ${field('Notes', `<textarea rows="3" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea>`)}
-  ${field('Show measurements as', `<select data-focus-key="displaySystem" data-field="displaySystem">
-    ${option('imperial', 'Inches', project.displaySystem === 'imperial')}
-    ${option('metric', 'Millimeters', project.displaySystem === 'metric')}
-  </select>`)}
-</div></details>`;
+/**
+ * A measurement with nudge buttons.
+ *
+ * The box itself stays a text input, because a number input rejects the
+ * fraction forms this app prints and a woodworker types ("3 1/2"). The buttons
+ * give the up/down behavior a number input would have, stepping by an eighth,
+ * which is the increment these measurements actually land on.
+ */
+function stepperInput({ key, value, step = 0.125, keypad = 'decimal' }) {
+  return `<span class="stepper">`
+    + numericInput({ key, value, keypad })
+    + `<span class="steps">`
+    + `<button type="button" class="step" data-step="${step}" data-step-for="${escapeHtml(key)}" tabindex="-1" aria-label="Increase">&#9650;</button>`
+    + `<button type="button" class="step" data-step="${-step}" data-step-for="${escapeHtml(key)}" tabindex="-1" aria-label="Decrease">&#9660;</button>`
+    + `</span></span>`;
 }
 
-function paramsPanel(project) {
-  return `<details class="panel" data-panel="params"><summary>Cutting parameters</summary><div class="panel-body">
-  <div class="row">
-    ${field('Blade kerf (in)', numericInput({ key: 'params.kerfIn', value: project.params.kerfIn }))}
-    ${field('Edge trim (in)', numericInput({ key: 'params.edgeTrimIn', value: project.params.edgeTrimIn }))}
-  </div>
-  <p class="muted">Defaults: 0.125 in kerf taken between neighboring parts, 0 in trimmed off the factory edges.</p>
-</div></details>`;
+function metaPanel(project) {
+  return `<section class="section" data-panel="meta"><h2>Project</h2>
+  <table class="grid-table"><tbody>
+    <tr><th scope="row">Name</th><td colspan="3">${textInput({ key: 'name', value: project.name })}</td></tr>
+    <tr><th scope="row">Date</th><td>${textInput({ key: 'date', value: project.date, type: 'date' })}</td>
+        <th scope="row">Units</th><td><select data-focus-key="displaySystem" data-field="displaySystem">
+          ${option('imperial', 'Inches', project.displaySystem === 'imperial')}
+          ${option('metric', 'Millimeters', project.displaySystem === 'metric')}
+        </select></td></tr>
+    <tr><th scope="row">Blade kerf</th><td class="num">${stepperInput({ key: 'params.kerfIn', value: project.params.kerfIn, step: 0.0625 })}</td>
+        <th scope="row">Edge trim</th><td class="num">${stepperInput({ key: 'params.edgeTrimIn', value: project.params.edgeTrimIn })}</td></tr>
+    <tr><th scope="row">Notes</th><td colspan="3"><textarea rows="2" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea></td></tr>
+  </tbody></table>
+</section>`;
 }
 
 /**
@@ -101,7 +110,7 @@ function thicknessControl(material, index, uiState) {
   </select>`;
 
   const custom = mode === 'custom'
-    ? field('Thickness (in)', numericInput({ key: `materials.${index}.thicknessIn`, value: material.thicknessIn }))
+    ? field('Thickness (in)', stepperInput({ key: `materials.${index}.thicknessIn`, value: material.thicknessIn, step: 0.0625 }))
     : '';
   return field('Thickness', select) + custom;
 }
@@ -113,105 +122,87 @@ function sheetRow(materialIndex, sheet, sheetIndex, uiState) {
     .map((p) => option(p.id, p.label, mode === 'preset' && preset !== undefined && p.id === preset.id))
     .join('');
   const base = `materials.${materialIndex}.sheets.${sheetIndex}`;
-  return `<div class="entry"><div class="row">
-    ${field('Size preset', `<select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select>`)}
-    ${field('Width (in)', numericInput({ key: `${base}.widthIn`, value: sheet.widthIn }))}
-    ${field('Length (in)', numericInput({ key: `${base}.lengthIn`, value: sheet.lengthIn }))}
-    ${field('On hand', numericInput({ key: `${base}.qty`, value: sheet.qty, keypad: 'numeric' }))}
-  </div><div class="row">
-    ${field('Label or note', textInput({ key: `${base}.label`, value: sheet.label, placeholder: 'Where this sheet came from' }))}
-    <div><button class="secondary" type="button" data-action="rotate-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}">&#8644; Swap to ${escapeHtml(sheet.lengthIn)} x ${escapeHtml(sheet.widthIn)} and repack</button></div>
-    <div><button class="danger" type="button" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}">Remove this ${escapeHtml(sheet.widthIn)} x ${escapeHtml(sheet.lengthIn)} sheet (${escapeHtml(sheet.qty)} on hand)</button></div>
-  </div>
-  <p class="muted">Set On hand to 0 for a sheet size you still need to buy.</p>
-</div>`;
+  return `<tr>
+    <td><select data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
+    <td class="num">${stepperInput({ key: `${base}.widthIn`, value: sheet.widthIn })}</td>
+    <td class="num">${stepperInput({ key: `${base}.lengthIn`, value: sheet.lengthIn })}</td>
+    <td class="qty num"><input type="number" min="0" step="1" data-focus-key="${base}.qty" data-field="${base}.qty" value="${escapeHtml(sheet.qty)}" /></td>
+    <td>${textInput({ key: `${base}.label`, value: sheet.label, placeholder: 'Note' })}</td>
+    <td class="mid"><button type="button" class="row-remove" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}" title="Remove this ${escapeHtml(sheet.widthIn)} x ${escapeHtml(sheet.lengthIn)} sheet" aria-label="Remove this ${escapeHtml(sheet.widthIn)} by ${escapeHtml(sheet.lengthIn)} sheet">&times;</button></td>
+  </tr>`;
 }
 
 function materialGroup(material, index, uiState) {
-  const sheetCount = material.sheets.length;
-  const sizeWord = sheetCount === 1 ? 'sheet size' : 'sheet sizes';
   const groupName = material.name === '' ? 'this unnamed group' : `"${escapeHtml(material.name)}"`;
 
-  // The sheets sit inside a fieldset, with their own legend and a left rule, so
-  // that "these sizes belong to this group" is visible rather than implied by
-  // indentation that disappears at phone width.
-  return `<div class="entry">
-    <div class="row">
-      ${field('Group name', textInput({ key: `materials.${index}.name`, value: material.name }))}
+  // The sheet sizes are drawn inside the group's own box with a rule down the
+  // side, so "these sizes belong to this material" is something you can see
+  // rather than something you have to work out from two Remove buttons.
+  return `<div class="group">
+    <div class="group-head">
+      ${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}
       ${thicknessControl(material, index, uiState)}
+      <button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove ${groupName} and every sheet size in it" aria-label="Remove ${groupName} and every sheet size in it">&times;</button>
     </div>
-    ${field('Group note', textInput({ key: `materials.${index}.note`, value: material.note }))}
-    <fieldset class="sheet-group">
-      <legend>Sheet sizes (${sheetCount})</legend>
-      ${material.sheets.map((sheet, sheetIndex) => sheetRow(index, sheet, sheetIndex, uiState)).join('')}
-      <button class="secondary" type="button" data-action="add-sheet" data-material="${index}">Add sheet size</button>
-    </fieldset>
-    <div class="row">
-      <div><button class="danger" type="button" data-action="remove-material" data-material="${index}">Remove ${groupName} and its ${sheetCount} ${sizeWord}</button></div>
+    <div class="group-sheets">
+      <h3>Sheets</h3>
+      <table class="grid-table">
+        <thead><tr>
+          <th>Size</th><th class="num">Width</th><th class="num">Length</th>
+          <th class="num">On hand</th><th>Note</th><th></th>
+        </tr></thead>
+        <tbody>${material.sheets.map((sheet, i) => sheetRow(index, sheet, i, uiState)).join('')}</tbody>
+      </table>
+      <button type="button" class="add-row" data-action="add-sheet" data-material="${index}">+ Add sheet size</button>
     </div>
   </div>`;
 }
 
 function materialsPanel(project, uiState) {
-  const groups = project.materials
-    .map((material, index) => materialGroup(material, index, uiState))
-    .join('');
-
-  return `<details class="panel" data-panel="materials" open><summary>Material groups (${project.materials.length})</summary><div class="panel-body">
+  const groups = project.materials.map((m, i) => materialGroup(m, i, uiState)).join('');
+  return `<section class="section" data-panel="materials"><h2>Material</h2>
     ${groups}
-    <button class="secondary" type="button" data-action="add-material">Add material group</button>
-  </div></details>`;
+    <button type="button" class="add-row" data-action="add-material">+ Add material</button>
+  </section>`;
 }
 
 function partsPanel(project) {
   const declared = new Set(project.materials.map((material) => material.id));
 
   // A part can belong to no group at all: added before the first group existed,
-  // or left behind when its group was deleted. The control has to say so. Left
-  // to the plain option list the browser displays whichever group comes first,
-  // which reads as an answer nobody gave and, with a single group on the list,
-  // leaves nothing to pick to put the part right -- the project then cannot be
-  // saved and cannot be fixed either.
+  // or left behind when its group was deleted. The control has to say so rather
+  // than display whichever group happens to come first, which reads as an
+  // answer nobody gave.
   const materialOptions = (selected) => {
-    const unassigned = declared.has(selected) ? '' : option('', 'Not in a group yet', true);
+    const unassigned = declared.has(selected) ? '' : option('', 'Pick a material', true);
     return unassigned + project.materials
-      .map((material) => option(material.id, material.name === '' ? 'Unnamed group' : material.name, material.id === selected))
+      .map((m) => option(m.id, m.name === '' ? 'Unnamed' : m.name, m.id === selected))
       .join('');
   };
 
-  const rows = project.parts.map((part, index) => `<div class="entry">
-    <div class="row">
-      ${field('Part name', textInput({ key: `parts.${index}.name`, value: part.name }))}
-      ${field('Quantity', numericInput({ key: `parts.${index}.qty`, value: part.qty, keypad: 'numeric' }))}
-    </div>
-    <div class="row">
-      ${field('Width (in)', numericInput({ key: `parts.${index}.widthIn`, value: part.widthIn }))}
-      ${field('Length (in)', numericInput({ key: `parts.${index}.lengthIn`, value: part.lengthIn }))}
-    </div>
-    <div class="row">
-      ${field('Material group', `<select data-focus-key="parts.${index}.materialId" data-field="parts.${index}.materialId">${materialOptions(part.materialId)}</select>`)}
-      <div><label>Grain locked</label>
-        <input type="checkbox" data-focus-key="parts.${index}.grainLocked" data-field="parts.${index}.grainLocked"${part.grainLocked ? ' checked' : ''} />
-      </div>
-      <div><button class="danger" type="button" data-action="remove-part" data-part="${index}">Remove part</button></div>
-    </div>
-  </div>`).join('');
+  const rows = project.parts.map((part, index) => `<tr>
+    <td>${textInput({ key: `parts.${index}.name`, value: part.name, placeholder: 'Part name' })}</td>
+    <td class="qty num"><input type="number" min="1" step="1" data-focus-key="parts.${index}.qty" data-field="parts.${index}.qty" value="${escapeHtml(part.qty)}" /></td>
+    <td class="num">${stepperInput({ key: `parts.${index}.widthIn`, value: part.widthIn })}</td>
+    <td class="num">${stepperInput({ key: `parts.${index}.lengthIn`, value: part.lengthIn })}</td>
+    <td><select data-focus-key="parts.${index}.materialId" data-field="parts.${index}.materialId">${materialOptions(part.materialId)}</select></td>
+    <td class="mid"><input type="checkbox" data-focus-key="parts.${index}.grainLocked" data-field="parts.${index}.grainLocked"${part.grainLocked ? ' checked' : ''} aria-label="Grain runs along the length" /></td>
+    <td class="mid"><button type="button" class="row-remove" data-action="remove-part" data-part="${index}" title="Remove this part" aria-label="Remove this part">&times;</button></td>
+  </tr>`).join('');
 
-  return `<details class="panel" data-panel="parts" open><summary>Parts (${project.parts.length})</summary><div class="panel-body">
-    ${rows}
-    <button class="secondary" type="button" data-action="add-part">Add part</button>
-    <p class="muted">A grain locked part is never turned 90 degrees. Leave it off unless the grain direction matters.</p>
-  </div></details>`;
+  return `<section class="section" data-panel="parts"><h2>Parts</h2>
+    <table class="grid-table">
+      <thead><tr>
+        <th>Name</th><th class="num">Qty</th><th class="num">Width</th><th class="num">Length</th>
+        <th>Material</th><th class="mid" title="Grain must run along the length">Grain</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <button type="button" class="add-row" data-action="add-part">+ Add part</button>
+  </section>`;
 }
 
-/**
- * The whole editing surface.
- *
- * `uiState` is app.js's map of control modes, keyed by entity id. Absent, every
- * control falls back to the mode its numbers imply, which is exactly what a
- * freshly loaded project should show.
- */
 export function renderForms(project, uiState) {
-  return metaPanel(project) + paramsPanel(project)
+  return metaPanel(project)
     + materialsPanel(project, uiState) + partsPanel(project);
 }

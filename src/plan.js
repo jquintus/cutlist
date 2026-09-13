@@ -23,7 +23,7 @@ export function planProject(project) {
     }
   }
 
-  const materials = project.materials.map((material) => {
+  const materials = project.materials.map((material, materialIndex) => {
     if ((material.sheets ?? []).length === 0) {
       warnings.push(`Material group "${material.name}" lists no sheet size, so 48 x 96 was assumed for anything you need to buy.`);
     }
@@ -37,6 +37,10 @@ export function planProject(project) {
 
     return {
       materialId: material.id,
+      // The repack control sits beside the diagram, and the action that swaps a
+      // sheet's width and length addresses the group by position, so the plan
+      // has to carry that position back out.
+      materialIndex,
       name: material.name,
       thicknessIn: material.thicknessIn,
       thicknessLabel: material.thicknessLabel,

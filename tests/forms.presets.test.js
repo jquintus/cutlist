@@ -81,13 +81,15 @@ test('the thickness control is one control: Other reveals the measurement box', 
 
 test('the sheets of a group are nested inside their own labeled box', () => {
   const html = renderForms(project(), new Map());
-  assert.match(html, /<fieldset class="sheet-group">\s*<legend>Sheet sizes \(1\)<\/legend>/);
+  // The sheets live in the group's own box behind a left rule, with their own
+  // heading, so the nesting is something you can see.
+  assert.match(html, /<div class="group-sheets">\s*<h3>Sheets<\/h3>/);
 });
 
 test('a destructive button says what it will destroy', () => {
   const html = renderForms(project(), new Map());
-  assert.ok(html.includes('Remove this 48 x 96 sheet (1 on hand)'));
-  assert.ok(html.includes('Remove "Ply" and its 1 sheet size'));
+  assert.ok(html.includes('title="Remove this 48 x 96 sheet"'));
+  assert.ok(html.includes('and every sheet size in it'), 'the group control does not say it takes the sheets too');
 });
 
 test('a hostile group name cannot break out of a destructive label', () => {
@@ -109,7 +111,7 @@ test('a part in no material group says so instead of showing the first group', (
     parts: [{ id: 'p1', name: 'Panel', qty: 1, widthIn: 12, lengthIn: 12, materialId: '' }],
   });
   const options = optionsOf(renderForms(orphaned), 'parts.0.materialId');
-  assert.deepEqual(options[0], { value: '', selected: true, label: 'Not in a group yet' });
+  assert.deepEqual(options[0], { value: '', selected: true, label: 'Pick a material' });
   assert.ok(options.some((entry) => entry.value === 'm1' && !entry.selected), 'the real group is still pickable');
 });
 

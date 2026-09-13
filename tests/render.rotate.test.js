@@ -67,21 +67,25 @@ test('swapping a sheet spec changes the layout it produces', () => {
   assert.notDeepEqual(shape(upright), shape(swapped), 'swapping the sheet spec changed nothing');
 });
 
-test('the two controls sit in different places and use different words', () => {
+// Both controls now sit beside the picture they act on, which is where someone
+// looking at a layout wants them. They stay distinguishable by their words and
+// by what they do: one turns the drawing, the other lays the sheet the other
+// way and works out the cuts again.
+test('the two controls sit beside the diagram and use different words', () => {
   const forms = renderForms(project());
   const results = renderResults(planProject(project()), { rotated: {} });
 
-  assert.ok(forms.includes('data-action="rotate-sheet"'), 'no repack control in the editing form');
-  assert.ok(forms.includes('Swap to 96 x 48 and repack'));
+  assert.ok(!forms.includes('rotate-sheet'), 'the repack control must not be back in the editing form');
   assert.ok(!forms.includes('rotate-view'), 'the view control must not appear in the editing form');
 
   assert.ok(results.includes('data-action="rotate-view"'), 'no view control on the diagram');
-  assert.ok(results.includes('Rotate view'));
-  assert.ok(!results.includes('rotate-sheet'), 'the repack control must not appear beside the picture');
+  assert.ok(results.includes('Turn picture'));
+  assert.ok(results.includes('data-action="rotate-sheet"'), 'no repack control on the diagram');
+  assert.ok(results.includes('Repack'));
 });
 
 test('the view control is not printed', () => {
   const results = renderResults(planProject(project()), { rotated: {} });
-  const control = results.split('data-action="rotate-view"')[0].split('<div class="row').at(-1);
+  const control = results.split('data-action="rotate-view"')[0].split('<div class="figure-tools').at(-1);
   assert.ok(control.includes('no-print'), 'the view control would print');
 });
