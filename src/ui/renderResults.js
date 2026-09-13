@@ -96,7 +96,7 @@ function sheetArticle(plan, materialPlan, sheetPlan, index, view, system) {
       >${escapeHtml(sheetPlan.label)}</a> <span class="muted">(${sourceLabel(sheetPlan.source)})</span></h3>
     <div class="sheet-grid">
       <div class="sheet-figure">
-        <div class="sheet-view${turned}">${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
+        <div class="sheet-view${turned}"${isRotated ? ` style="--sheet-ratio:${sheetPlan.widthIn / sheetPlan.lengthIn};--turned-ratio:${sheetPlan.lengthIn} / ${sheetPlan.widthIn}"` : ''}>${sheetSvg(sheetPlan, materialPlan, { ...plan.params, displaySystem: plan.displaySystem })}</div>
         ${rotatedNotice}
         <div class="figure-tools no-print">
           <button type="button" data-action="rotate-view" data-sheet="${escapeHtml(key)}" title="Turn the picture only. The cuts do not change.">&#8635; Turn picture</button>

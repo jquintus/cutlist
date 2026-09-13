@@ -191,7 +191,7 @@ function overlaps(a, b) {
  * centered on its own edge, and a cut line very often runs exactly along one.
  */
 function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
-  const size = Math.max(0.6, scale / 28);
+  const base = Math.max(0.6, scale / 28);
   return sheetPlan.cuts.map((step) => {
     const acrossX = step.axis === 'v';
     // The measurement rides with the step number, on the line it belongs to.
@@ -199,6 +199,8 @@ function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
     // read anywhere else is where the saw goes, and that is a property of the
     // line, not of the box beside it.
     const text = `${step.seq}. ${formatLength(step.atIn, system)}`;
+
+    const size = base;
     const width = textWidth(text, size) + 2 * size * MARK_PAD;
 
     // The label is centered on its anchor, so a cut that starts at an edge puts
@@ -213,6 +215,12 @@ function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
     return {
       step,
       text,
+      size,
+      // How far this label may slide along its own line to get out of another
+      // one's way, and which way that is.
+      along: acrossX ? 'y' : 'x',
+      alongFrom: step.fromIn,
+      alongTo: step.toIn,
       x,
       y,
       size,
@@ -227,6 +235,48 @@ function stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn) {
       },
     };
   });
+}
+
+/**
+ * Slide labels apart so a busy sheet stays readable.
+ *
+ * A sheet with a dozen cuts puts several labels within a few inches of each
+ * other and they pile into an unreadable clump. Each label may only travel
+ * along its own cut line, so moving one never separates it from the line it
+ * names. Taken in step order, so the earlier cut keeps the spot it would have
+ * had and only later ones give way.
+ *
+ * Best effort, not a guarantee: a label with nowhere left to go on its own line
+ * stays where it is rather than wandering off it.
+ */
+function spreadMarks(marks) {
+  const placed = [];
+  for (const mark of marks) {
+    const span = Math.abs(mark.alongTo - mark.alongFrom);
+    const stride = mark.size * 1.3;
+    const steps = Math.max(1, Math.floor(span / stride));
+
+    // Try the spot the label wants first, then alternate either side of it, so
+    // a label moves the shortest distance that clears its neighbours instead of
+    // always marching one way down the line.
+    const offsets = [0];
+    for (let n = 1; n <= steps; n += 1) offsets.push(n * stride, -n * stride);
+
+    let settled = null;
+    for (const shift of offsets) {
+      const at = mark[mark.along] + shift;
+      if (at < mark.alongFrom || at > mark.alongTo) continue;
+      const candidate = { ...mark, [mark.along]: at };
+      candidate.box = { ...mark.box, [mark.along]: mark.box[mark.along] + shift };
+      if (placed.some((other) => overlaps(candidate.box, other.box))) continue;
+      settled = candidate;
+      break;
+    }
+    // Nowhere on its own line is clear. Leave it where it belongs rather than
+    // move it somewhere it would describe the wrong cut.
+    placed.push(settled ?? mark);
+  }
+  return placed;
 }
 
 /** How much room a box has for text, in square inches. */
@@ -341,7 +391,7 @@ export function sheetSvg(sheetPlan, materialPlan, params) {
   const key = sheetKey(materialPlan, sheetPlan, materialPlan.sheets.indexOf(sheetPlan));
 
   const colors = colorsForSheet(sheetPlan.placements);
-  const marks = stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn);
+  const marks = spreadMarks(stepNumberMarks(sheetPlan, scale, system, widthIn, lengthIn));
   const blocks = sheetPlan.placements.map((placement) => {
     // A part carries its name and nothing else. Its size is on the parts list
     // beside the diagram, and writing it along the edges put faint text over a

@@ -698,12 +698,12 @@ document.addEventListener('keydown', (event) => {
 
 shareButton.addEventListener('click', () => copyShareLink(shareButton));
 
-document.getElementById('btn-new').addEventListener('click', () => loadProject(newProject()));
+// New project is a plain link to this page with no fragment, so it behaves like
+// Save to GitHub: middle-click or cmd-click opens a blank project in a tab of
+// its own, and where it opens stays the reader's call. No handler, because a
+// handler is what would take that choice away.
 
-document.getElementById('btn-open').addEventListener('click', () => {
-  populateLocalPicker();
-  el.openDialog.showModal();
-});
+document.getElementById('btn-open').addEventListener('click', () => el.openDialog.showModal());
 
 document.getElementById('btn-export').addEventListener('click', () => {
   // A file this build would refuse to import is not a backup of anything, so

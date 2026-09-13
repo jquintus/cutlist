@@ -309,7 +309,39 @@ textarea { width: 100%; resize: vertical; }
 .sheet-figure { min-width: 0; }
 .sheet-view { display: block; }
 .sheet-view svg, .sheet-svg { display: block; width: 100%; height: auto; }
-.sheet-view.rotated { transform: rotate(90deg); transform-origin: center; }
+/* Turning the picture.
+ *
+ * A bare `transform: rotate(90deg)` does not change an element's layout box, so
+ * the turned diagram kept the tall footprint of the upright one: the picture
+ * shrank into the middle of a column sized for its old shape, and the overflow
+ * ran across whatever sat beside it as a white stripe.
+ *
+ * The wrapper is what reserves space instead. It swaps to the rotated aspect
+ * ratio, and the SVG inside is sized to the wrapper's other axis before being
+ * turned about its own center, so the picture fills the room it is given and
+ * nothing spills out of it. */
+.sheet-view.rotated {
+  position: relative;
+  width: 100%;
+  /* The turned shape: a 96 x 48 sheet shown on its side is 48 wide by 96 long,
+     so the wrapper reserves that, and nothing below it gets overlapped. */
+  aspect-ratio: var(--turned-ratio);
+  overflow: hidden;
+}
+
+.sheet-view.rotated > svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* Sized so that after the quarter turn the picture exactly fills the wrapper:
+     its pre-rotation width becomes the wrapper's height, and vice versa. */
+  width: calc(100% * var(--sheet-ratio));
+  height: auto;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center;
+}
+
 .view-rotated-note { margin: 6px 0 0; font-size: .78rem; color: var(--ink-soft); }
 
 /* Controls that act on the picture sit under it, quiet and small. */

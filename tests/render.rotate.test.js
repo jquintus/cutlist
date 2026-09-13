@@ -50,7 +50,10 @@ test('the view rotation lands on the wrapper, never on the diagram', () => {
   const turned = renderResults(plan, { rotated: { [key]: true } });
 
   assert.ok(flat.includes('<div class="sheet-view">'));
-  assert.ok(turned.includes('<div class="sheet-view rotated">'));
+  // The wrapper also carries the sheet's proportions so it can reserve the
+  // turned shape, instead of leaving a rotated picture to shrink inside a box
+  // sized for the upright one and spill over its neighbours.
+  assert.match(turned, /<div class="sheet-view rotated" style="--sheet-ratio:[\d.]+;--turned-ratio:[\d.]+ \/ [\d.]+">/);
   // The SVG itself is untouched, which is what makes print unaffected.
   const svgOf = (html) => html.match(/<svg[\s\S]*?<\/svg>/)[0];
   assert.equal(svgOf(flat), svgOf(turned));

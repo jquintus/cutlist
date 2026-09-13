@@ -29,12 +29,14 @@ itself, so it opens with no network at all once the page has loaded once.
 
 Projects:
 
-- **New** starts an empty project: no material group, no sheet, no part.
-- **Open...** lists the projects committed to this repository and the projects
-  saved in this browser, in two groups.
-- **Save** writes back to the project you opened or last saved as. A project
-  that has never been saved falls through to Save As.
-- **Save As...** asks for a name and saves under it, in this browser only.
+- **New project** is a plain link to this page with no project in it, so
+  middle-click or cmd-click opens a blank project in a tab of its own.
+- **Open project...** lists the projects committed to this repository.
+
+Nothing is saved in your browser. A project lives in the URL, in a file you
+export, or in `projects/` in this repository, all three of which can reach
+another device. That is the point: build the plan at a desk, open it on a phone
+at the saw.
 
 The rest of the menu:
 
@@ -43,11 +45,23 @@ The rest of the menu:
 - **Import JSON** reads such a file back.
 - **Save to GitHub** is a plain link to a prefilled commit page; see below.
 
-There is no Print button. Use your browser's own print command (Ctrl/Cmd+P):
-the print stylesheet gives you a black and white page that needs no color ink,
-with each sheet's diagram, its numbered cut lines, its CUTS list and its parts
-checklist together. The printed page and the on-screen diagram always describe
-the same layout.
+There is no Print button. Use your browser's own print command (Ctrl/Cmd+P),
+which is also how you get a PDF: choose "Save as PDF" as the destination. The
+print stylesheet gives you a black and white page that needs no color ink, with
+each sheet's diagram beside its CUTS list and its parts checklist, and the
+checkboxes printed as empty boxes to tick with a pencil. Nothing on paper
+depends on color to be understood. The printed page and the on-screen diagram
+always describe the same layout.
+
+## Working at the saw
+
+Every sheet heading is a link to that sheet on its own: its diagram, its cuts,
+its parts, and nothing else on the screen. **Prev** and **Next** step through
+the sheets from there. The **Shopping list** heading opens the same way, for
+standing in a store working down the list.
+
+Ticking a part or a shopping line records it in the URL, so a refresh does not
+lose what you have already cut or bought.
 
 ## Adding a project
 
