@@ -500,3 +500,32 @@ body.focus-sheet .results { position: static; max-height: none; overflow: visibl
 
 body.focus-sheet .shopping-list { border-width: 0; background: none; padding: 0; }
 body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+
+/* Stepping between sheets on a phone: back on the left, position in the
+   middle, Prev and Next big enough to hit with a thumb on the right. */
+.sheet-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-nav > a { color: var(--accent); text-decoration: none; }
+.sheet-nav > a:hover { text-decoration: underline; }
+.sheet-count { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sheet-steps-nav { display: flex; gap: 8px; }
+
+.sheet-step {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sheet-step:hover { border-color: var(--accent); color: var(--accent); }
+.sheet-step.is-off { opacity: .35; }

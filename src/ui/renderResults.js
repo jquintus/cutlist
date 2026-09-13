@@ -51,10 +51,26 @@ function shoppingListSection(plan, system, ticked = new Set(), standalone = fals
       + `<input type="checkbox" data-tick="${escapeHtml(id)}"${done ? ' checked' : ''} /> ${text}</label></li>`;
   }).join('');
 
-  // In a store you want the list and nothing else, so it opens on its own the
-  // same way a sheet does.
-  const openLink = standalone ? '' : `<a class="open-alone no-print" data-view-link="shopping" href="#">Open on its own</a>`;
-  return `<section class="shopping-list"><h2>Shopping list ${openLink}</h2><ul class="buy-list">${items}</ul></section>`;
+  // The heading is the link, exactly like a sheet's heading, so there is one
+  // way to open a thing on its own rather than a separate phrase to find.
+  const heading = standalone
+    ? 'Shopping list'
+    : `<a class="sheet-link" data-view-link="shopping" href="#"
+        title="Open the shopping list on its own, for the store">Shopping list</a>`;
+  return `<section class="shopping-list"><h2>${heading}</h2><ul class="buy-list">${items}</ul></section>`;
+}
+
+/**
+ * Prev or Next, as a real link when there is a sheet that way and a dead button
+ * when there is not.
+ *
+ * Kept as a disabled button rather than dropped, so the row does not reflow
+ * under a thumb as you step from the first sheet to the second.
+ */
+function stepLink(entry, view, label) {
+  if (entry === undefined) return `<span class="sheet-step is-off">${escapeHtml(label)}</span>`;
+  const href = `${view.baseHash || '#'}&sheet=${encodeURIComponent(entry.key)}`;
+  return `<a class="sheet-step" href="${escapeHtml(href)}" title="${escapeHtml(entry.sheetPlan.label)}">${escapeHtml(label)}</a>`;
 }
 
 /** One sheet: its picture, the cuts that make it, and the parts it yields. */
@@ -131,18 +147,28 @@ export function renderResults(plan, view = {}) {
   // One sheet on its own, which is the view for a phone at the saw: the
   // diagram, its cuts and its parts, and nothing else competing for the screen.
   if (view.focusSheet) {
-    for (const materialPlan of plan.materials) {
-      for (const [index, sheetPlan] of materialPlan.sheets.entries()) {
-        if (sheetKey(materialPlan, sheetPlan, index) !== view.focusSheet) continue;
-        return `<p class="focus-back no-print"><a href="${escapeHtml(view.baseHash || '#')}">&larr; All sheets</a></p>`
-          + `<section class="material-section"><h2>${escapeHtml(materialPlan.name)}`
-          + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>`
-          + sheetArticle(plan, materialPlan, sheetPlan, index, view, system)
-          + '</section>';
-      }
+    // Every sheet in the plan, in the order they are laid out, so the focused
+    // view can step to the one before and the one after. Flattened once rather
+    // than searched twice: the position is what Prev and Next are built from.
+    const all = plan.materials.flatMap((materialPlan) => materialPlan.sheets
+      .map((sheetPlan, index) => ({ materialPlan, sheetPlan, index, key: sheetKey(materialPlan, sheetPlan, index) })));
+    const at = all.findIndex((entry) => entry.key === view.focusSheet);
+    const back = `<a href="${escapeHtml(view.baseHash || '#')}">&larr; All sheets</a>`;
+
+    if (at === -1) {
+      return `<p class="focus-back no-print">${back}</p>`
+        + '<p class="muted">That sheet is not in this project any more.</p>';
     }
-    return `<p class="focus-back no-print"><a href="${escapeHtml(view.baseHash || '#')}">&larr; All sheets</a></p>`
-      + '<p class="muted">That sheet is not in this project any more.</p>';
+
+    const { materialPlan, sheetPlan, index } = all[at];
+    return `<nav class="sheet-nav no-print">${back}`
+      + `<span class="sheet-count">${at + 1} of ${all.length}</span>`
+      + `<span class="sheet-steps-nav">${stepLink(all[at - 1], view, 'Prev')}${stepLink(all[at + 1], view, 'Next')}</span>`
+      + '</nav>'
+      + `<section class="material-section"><h2>${escapeHtml(materialPlan.name)}`
+      + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>`
+      + sheetArticle(plan, materialPlan, sheetPlan, index, view, system)
+      + '</section>';
   }
 
   const anySheets = plan.materials.some((materialPlan) => materialPlan.sheets.length > 0);
