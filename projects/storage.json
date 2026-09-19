@@ -69,6 +69,22 @@
           "qty": 2
         }
       ]
+    },
+    {
+      "kind": "board",
+      "id": "6d287e53-0bea-4306-a3b2-078752b8bec5",
+      "summarySeparator": " x ",
+      "species": "Maple",
+      "thicknessIn": "1/2\"",
+      "widthIn": "5\"",
+      "note": "https://www.rockler.com/maple-by-the-piece-1-2-thickness",
+      "boards": [
+        {
+          "id": "04b78062-873a-42a1-a9ee-bf23eb7a9ca3",
+          "lengthIn": 24,
+          "qty": 1
+        }
+      ]
     }
   ]
 }
