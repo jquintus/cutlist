@@ -20,9 +20,9 @@ test('Pages CMS exposes Storage as a protected structured JSON file', async () =
   assert.equal(config.match(/value: "\{fields\.label\}"/g)?.length, 4);
   assert.match(config, /summary: "\{species\}\{name\} \{thicknessIn\}\{summarySeparator\}\{widthIn\}"/);
   assert.equal(config.match(/name: summarySeparator/g)?.length, 2);
-  assert.equal(config.match(/hidden: true/g)?.length, 6);
+  assert.equal(config.match(/hidden: true/g)?.length, 8);
   assert.equal(config.match(/generate: false/g)?.length, 4);
-  assert.equal(config.match(/step: 0\.001/g)?.length, 3);
+  assert.equal(config.match(/step: 0\.001/g)?.length, 5);
   assert.equal(config.match(/step: 1$/gm)?.length, 2);
 });
 
@@ -47,8 +47,8 @@ test('inventory reference filenames sort dimensions from smallest to largest', a
       return entry;
     }));
     const dimensions = entries.map((entry) => {
-      assert.equal(Object.hasOwn(entry, 'inches'), false);
-      return parseMeasurement(entry.label);
+      assert.equal(parseMeasurement(entry.label), entry.inches);
+      return entry.inches;
     });
     assert.deepEqual(dimensions, dimensions.toSorted((left, right) => left - right));
   }

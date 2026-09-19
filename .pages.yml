@@ -199,27 +199,30 @@ content:
         filename: "{order}-{label}.json"
         view:
           primary: label
-          fields: [order]
-          sort: [order]
+          fields: [inches, label]
+          sort: [inches]
           default:
-            sort: order
+            sort: inches
             order: asc
         fields:
+          - name: inches
+            label: Inches
+            type: number
+            required: true
+            options:
+              min: 0.001
+              step: 0.001
           - name: label
-            label: Display name
+            label: Display
             type: string
             required: true
             pattern:
               regex: '^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*|[1-9]\d*/[1-9]\d*|[1-9]\d* [1-9]\d*/[1-9]\d*)"$'
               message: 'Use inches, such as 3", 1/4", or 3 1/2".'
           - name: order
-            label: Sort order
             type: string
-            required: true
-            pattern:
-              regex: '^\d{2}$'
-              message: "Use two digits, such as 08."
-            description: Controls where this choice appears in the dropdown.
+            hidden: true
+            default: "99"
       - name: board_widths
         label: Board widths
         type: collection
@@ -228,24 +231,27 @@ content:
         filename: "{order}-{label}.json"
         view:
           primary: label
-          fields: [order]
-          sort: [order]
+          fields: [inches, label]
+          sort: [inches]
           default:
-            sort: order
+            sort: inches
             order: asc
         fields:
+          - name: inches
+            label: Inches
+            type: number
+            required: true
+            options:
+              min: 0.001
+              step: 0.001
           - name: label
-            label: Display name
+            label: Display
             type: string
             required: true
             pattern:
               regex: '^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*|[1-9]\d*/[1-9]\d*|[1-9]\d* [1-9]\d*/[1-9]\d*)"$'
               message: 'Use inches, such as 3", 1/4", or 3 1/2".'
           - name: order
-            label: Sort order
             type: string
-            required: true
-            pattern:
-              regex: '^\d{2}$'
-              message: "Use two digits, such as 08."
-            description: Controls where this choice appears in the dropdown.
+            hidden: true
+            default: "99"
