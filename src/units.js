@@ -5,6 +5,37 @@
 
 const MM_PER_INCH = 25.4;
 
+const TRAILING_INCH_UNIT = /\s*(?:inches|inch|in|")$/i;
+const MIXED_FRACTION = /^(\d+)\s+(\d+)\s*\/\s*(\d+)$/;
+const BARE_FRACTION = /^(\d+)\s*\/\s*(\d+)$/;
+
+/** Read a decimal, fraction, or mixed-number measurement with an optional unit. */
+export function parseMeasurement(value) {
+  const text = String(value ?? '')
+    .trim()
+    .replace(TRAILING_INCH_UNIT, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text === '') return null;
+
+  const mixed = text.match(MIXED_FRACTION);
+  if (mixed) {
+    const denominator = Number(mixed[3]);
+    if (denominator === 0) return null;
+    return Number(mixed[1]) + Number(mixed[2]) / denominator;
+  }
+
+  const fraction = text.match(BARE_FRACTION);
+  if (fraction) {
+    const denominator = Number(fraction[2]);
+    if (denominator === 0) return null;
+    return Number(fraction[1]) / denominator;
+  }
+
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /** Units accepted at the entry boundary. */
 export const UNITS = Object.freeze(['in', 'mm']);
 

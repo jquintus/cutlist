@@ -25,7 +25,7 @@ content:
         list:
           collapsible:
             collapsed: true
-            summary: "{species}{name}"
+            summary: "{species}{name} {thicknessIn}{summarySeparator}{widthIn}"
         blocks:
           - name: sheet
             label: Sheet goods
@@ -35,6 +35,10 @@ content:
                 hidden: true
                 options:
                   generate: false
+              - name: summarySeparator
+                type: string
+                hidden: true
+                default: ""
               - name: name
                 label: Material
                 type: string
@@ -46,8 +50,8 @@ content:
                 required: true
                 options:
                   collection: stock_thicknesses
-                  search: "label,inches"
-                  value: "{fields.inches}"
+                  search: "label"
+                  value: "{fields.label}"
                   label: "{fields.label}"
               - name: note
                 label: Notes
@@ -99,6 +103,10 @@ content:
                 hidden: true
                 options:
                   generate: false
+              - name: summarySeparator
+                type: string
+                hidden: true
+                default: " x "
               - name: species
                 label: Species
                 type: reference
@@ -114,8 +122,8 @@ content:
                 required: true
                 options:
                   collection: stock_thicknesses
-                  search: "label,inches"
-                  value: "{fields.inches}"
+                  search: "label"
+                  value: "{fields.label}"
                   label: "{fields.label}"
               - name: widthIn
                 label: Board width (inches)
@@ -123,8 +131,8 @@ content:
                 required: true
                 options:
                   collection: board_widths
-                  search: "label,inches"
-                  value: "{fields.inches}"
+                  search: "label"
+                  value: "{fields.label}"
                   label: "{fields.label}"
               - name: note
                 label: Notes
@@ -188,48 +196,56 @@ content:
         type: collection
         path: inventory/thicknesses
         format: json
-        filename: "{label}.json"
+        filename: "{order}-{label}.json"
         view:
           primary: label
-          fields: [inches]
-          sort: [inches]
+          fields: [order]
+          sort: [order]
           default:
-            sort: inches
+            sort: order
             order: asc
         fields:
           - name: label
             label: Display name
             type: string
             required: true
-          - name: inches
-            label: Inches
-            type: number
+            pattern:
+              regex: '^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*|[1-9]\d*/[1-9]\d*|[1-9]\d* [1-9]\d*/[1-9]\d*)"$'
+              message: 'Use inches, such as 3", 1/4", or 3 1/2".'
+          - name: order
+            label: Sort order
+            type: string
             required: true
-            options:
-              min: 0.001
-              step: 0.001
+            pattern:
+              regex: '^\d{2}$'
+              message: "Use two digits, such as 08."
+            description: Controls where this choice appears in the dropdown.
       - name: board_widths
         label: Board widths
         type: collection
         path: inventory/widths
         format: json
-        filename: "{label}.json"
+        filename: "{order}-{label}.json"
         view:
           primary: label
-          fields: [inches]
-          sort: [inches]
+          fields: [order]
+          sort: [order]
           default:
-            sort: inches
+            sort: order
             order: asc
         fields:
           - name: label
             label: Display name
             type: string
             required: true
-          - name: inches
-            label: Inches
-            type: number
+            pattern:
+              regex: '^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*|[1-9]\d*/[1-9]\d*|[1-9]\d* [1-9]\d*/[1-9]\d*)"$'
+              message: 'Use inches, such as 3", 1/4", or 3 1/2".'
+          - name: order
+            label: Sort order
+            type: string
             required: true
-            options:
-              min: 0.001
-              step: 0.001
+            pattern:
+              regex: '^\d{2}$'
+              message: "Use two digits, such as 08."
+            description: Controls where this choice appears in the dropdown.

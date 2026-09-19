@@ -6,13 +6,14 @@
 // direction is rejected from all three.
 
 import { SCHEMA_VERSION, normalizeProject } from '../model.js';
+import { parseMeasurement } from '../units.js';
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function finitePositive(value) {
-  const parsed = Number(value);
+  const parsed = parseMeasurement(value);
   return Number.isFinite(parsed) && parsed > 0;
 }
 

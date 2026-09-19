@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
+import { parseMeasurement } from '../src/units.js';
 
 test('Pages CMS exposes Storage as a protected structured JSON file', async () => {
   const config = await readFile(new URL('../.pages.yml', import.meta.url), 'utf8');
@@ -16,9 +17,28 @@ test('Pages CMS exposes Storage as a protected structured JSON file', async () =
   assert.match(config, /collection: stock_thicknesses/);
   assert.match(config, /collection: board_widths/);
   assert.match(config, /value: "\{primary\}"/);
-  assert.equal(config.match(/value: "\{fields\.inches\}"/g)?.length, 3);
-  assert.equal(config.match(/hidden: true/g)?.length, 4);
+  assert.equal(config.match(/value: "\{fields\.label\}"/g)?.length, 3);
+  assert.match(config, /summary: "\{species\}\{name\} \{thicknessIn\}\{summarySeparator\}\{widthIn\}"/);
+  assert.equal(config.match(/name: summarySeparator/g)?.length, 2);
+  assert.equal(config.match(/hidden: true/g)?.length, 6);
   assert.equal(config.match(/generate: false/g)?.length, 4);
-  assert.equal(config.match(/step: 0\.001/g)?.length, 5);
+  assert.equal(config.match(/step: 0\.001/g)?.length, 3);
   assert.equal(config.match(/step: 1$/gm)?.length, 2);
+});
+
+test('inventory reference filenames sort dimensions from smallest to largest', async () => {
+  for (const catalog of ['thicknesses', 'widths']) {
+    const dir = new URL(`../inventory/${catalog}/`, import.meta.url);
+    const files = (await readdir(dir)).filter((name) => name.endsWith('.json')).sort();
+    const entries = await Promise.all(files.map(async (file) => {
+      const entry = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
+      assert.equal(file.slice(0, 2), entry.order);
+      return entry;
+    }));
+    const dimensions = entries.map((entry) => {
+      assert.equal(Object.hasOwn(entry, 'inches'), false);
+      return parseMeasurement(entry.label);
+    });
+    assert.deepEqual(dimensions, dimensions.toSorted((left, right) => left - right));
+  }
 });

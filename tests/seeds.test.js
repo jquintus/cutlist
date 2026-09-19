@@ -131,6 +131,6 @@ test('storage.json contains only physical inventory', async () => {
   }
   assert.deepEqual(
     storage.materials.filter((material) => material.kind === 'board').map((material) => material.name),
-    ['Cherry 1/4 in × 3 in', 'Cherry 1/4 in × 5 in'],
+    ['Cherry 1/4" x 3"', 'Cherry 1/4" x 5"'],
   );
 });

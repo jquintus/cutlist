@@ -77,7 +77,27 @@ test('normalizeProject derives a board name from species and dimensions', () => 
       boards: [{ lengthIn: 60, qty: 1 }],
     }],
   });
-  assert.equal(project.materials[0].name, 'Cherry 1/4 in × 3 in');
+  assert.equal(project.materials[0].name, 'Cherry 1/4" x 3"');
+});
+
+test('normalizeProject reads human-readable inventory reference values', () => {
+  const project = normalizeProject({
+    materials: [{
+      kind: 'board', species: 'Cherry', thicknessIn: '1/4"', widthIn: '3 1/2"',
+      boards: [{ lengthIn: 60, qty: 1 }],
+    }],
+  });
+  assert.equal(project.materials[0].thicknessIn, 0.25);
+  assert.equal(project.materials[0].widthIn, 3.5);
+  assert.equal(project.materials[0].name, 'Cherry 1/4" x 3 1/2"');
+});
+
+test('normalizeProject does not silently treat metric labels as inches', () => {
+  const project = normalizeProject({
+    materials: [{ kind: 'board', species: 'Cherry', thicknessIn: '6mm', widthIn: '25.4mm' }],
+  });
+  assert.equal(project.materials[0].thicknessIn, 0);
+  assert.equal(project.materials[0].widthIn, 0);
 });
 
 test('normalizeProject does not mutate its argument', () => {

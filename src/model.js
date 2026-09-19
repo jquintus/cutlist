@@ -1,7 +1,7 @@
 // The canonical project shape. Everything downstream computes over this and
 // nothing else re-parses raw user input.
 
-import { formatLength, thicknessLabelFor } from './units.js';
+import { formatLength, parseMeasurement, thicknessLabelFor } from './units.js';
 
 export const SCHEMA_VERSION = 3;
 
@@ -43,8 +43,7 @@ function str(value, fallback = '') {
 
 function num(value, fallback) {
   if (value === null || value === undefined || value === '') return fallback;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return parseMeasurement(value) ?? fallback;
 }
 
 function intAtLeast(value, minimum, fallback) {
@@ -85,8 +84,9 @@ export function normalizeProject(raw) {
     const thicknessIn = num(material.thicknessIn, 0);
     const widthIn = num(material.widthIn, 0);
     const species = str(material.species).trim();
+    const boardDimension = (inches) => formatLength(inches, displaySystem).replace(/ in$/, '"');
     const derivedName = kind === 'board' && species !== ''
-      ? `${species} ${thicknessLabelFor(thicknessIn, displaySystem)} × ${formatLength(widthIn, displaySystem)}`
+      ? `${species} ${boardDimension(thicknessIn)} x ${boardDimension(widthIn)}`
       : `Material ${materialIndex + 1}`;
     return {
       id: materialId,

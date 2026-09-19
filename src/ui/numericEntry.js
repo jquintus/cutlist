@@ -1,3 +1,7 @@
+import { parseMeasurement } from '../units.js';
+
+export { parseMeasurement };
+
 // Reading a number out of a box someone is still typing into.
 //
 // A measurement is typed one character at a time, and on the way to a real
@@ -27,9 +31,6 @@ const TRAILING_UNIT = /\s*(?:inches|inch|in|mm|cm|")$/i;
 // decimals after it yet, or a fraction whose denominator is not typed yet.
 const PARTIAL_ENTRY = /^-?(?:\d+\.|\.|\d+\s+|(?:\d+\s+)?\d+\s*\/\s*)?$/;
 
-const MIXED_FRACTION = /^(\d+)\s+(\d+)\s*\/\s*(\d+)$/;
-const BARE_FRACTION = /^(\d+)\s*\/\s*(\d+)$/;
-
 /** Strip a trailing unit and collapse inner runs of whitespace. */
 function normalize(text) {
   return String(text ?? '')
@@ -42,35 +43,6 @@ function normalize(text) {
 /** Is this text a number still being typed rather than a finished one? */
 export function isPartialNumber(text) {
   return PARTIAL_ENTRY.test(normalize(text));
-}
-
-/**
- * The number this text means, or null if it does not say one.
- *
- * Accepts a decimal ("17.75"), a bare fraction ("3/4"), and a mixed number
- * ("17 3/4"), each with an optional trailing unit. A zero denominator is not a
- * measurement, so it reads as nothing rather than as infinity.
- */
-export function parseMeasurement(text) {
-  const trimmed = normalize(text);
-  if (trimmed === '') return null;
-
-  const mixed = trimmed.match(MIXED_FRACTION);
-  if (mixed) {
-    const denominator = Number(mixed[3]);
-    if (denominator === 0) return null;
-    return Number(mixed[1]) + Number(mixed[2]) / denominator;
-  }
-
-  const fraction = trimmed.match(BARE_FRACTION);
-  if (fraction) {
-    const denominator = Number(fraction[2]);
-    if (denominator === 0) return null;
-    return Number(fraction[1]) / denominator;
-  }
-
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /**
