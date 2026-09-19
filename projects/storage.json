@@ -41,7 +41,7 @@
     {
       "kind": "board",
       "id": "996721fa-2f31-40ce-a872-e5fdada60aae",
-      "name": "Cherry",
+      "name": "1/4\" x 3\" Cherry",
       "thicknessIn": 0.25,
       "widthIn": 3,
       "note": "Rocker https://www.rockler.com/cherry-by-the-piece-1-4-thickness",
@@ -49,6 +49,21 @@
         {
           "id": "e044e08f-7cd3-44df-a655-0840bcfd43ac",
           "lengthIn": 48,
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "kind": "board",
+      "id": "1071e588-9972-4e04-88ae-c69725b05156",
+      "name": "1/4\" x 5\" Cherry ",
+      "thicknessIn": 0.25,
+      "widthIn": 5,
+      "note": "https://www.rockler.com/cherry-by-the-piece-1-4-thickness",
+      "boards": [
+        {
+          "id": "181e2bf1-228d-4bf0-8720-e5c5f60b7ad5",
+          "lengthIn": 24,
           "qty": 2
         }
       ]
