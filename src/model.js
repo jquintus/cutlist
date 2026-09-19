@@ -28,6 +28,7 @@ export function newProject({ now = () => new Date() } = {}) {
     params: { kerfIn: DEFAULT_KERF_IN, edgeTrimIn: DEFAULT_EDGE_TRIM_IN },
     materials: [],
     parts: [],
+    supplies: [],
     unplanned: [],
   };
 }
@@ -101,6 +102,33 @@ export function normalizeProject(raw) {
     };
   });
 
+  const rawSupplies = arr(source.supplies);
+  const usedSupplyIds = new Set(rawSupplies.map((supply) => str(supply?.id)).filter(Boolean));
+  let nextSupplyId = 1;
+  const supplies = rawSupplies.map((rawSupply) => {
+    const supply = rawSupply && typeof rawSupply === 'object' ? rawSupply : {};
+    let supplyId = str(supply.id);
+    if (supplyId === '') {
+      while (usedSupplyIds.has(`s${nextSupplyId}`)) nextSupplyId += 1;
+      supplyId = `s${nextSupplyId}`;
+      usedSupplyIds.add(supplyId);
+      nextSupplyId += 1;
+    }
+    return {
+      id: supplyId,
+      name: str(supply.name),
+      qty: intAtLeast(supply.qty, 1, 1),
+      packQty: intAtLeast(supply.packQty, 1, 1),
+      onHand: supply.onHand === true,
+      price: str(supply.price),
+      // Early supply drafts called this free-form description "unit". Preserve
+      // those links by moving the value into the field that actually describes
+      // an item, rather than keeping an ambiguous column forever.
+      note: str(supply.note) || str(supply.unit),
+      url: str(supply.url),
+    };
+  });
+
   const unplanned = arr(source.unplanned).map((rawItem) => {
     const item = rawItem && typeof rawItem === 'object' ? rawItem : {};
     return {
@@ -122,6 +150,7 @@ export function normalizeProject(raw) {
     },
     materials,
     parts,
+    supplies,
     unplanned,
   };
 }

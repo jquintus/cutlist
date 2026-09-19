@@ -158,19 +158,28 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
   };
 
   if (plan.shoppingList.length > 0) {
-    room(FONT.sub + 10 + plan.shoppingList.length * (LINE + 2));
+    room(FONT.sub + 10);
     pg.text('Shopping list', MARGIN, top, { size: FONT.sub, bold: true });
     top += FONT.sub + 6;
 
     for (const entry of plan.shoppingList) {
       const thickness = entry.thicknessLabel ? ` (${entry.thicknessLabel})` : '';
+      const supplyDetails = entry.kind === 'supply'
+        ? [`${entry.qty} needed`, entry.packQty > 1 ? `${entry.packQty} per item` : '', entry.note].filter(Boolean)
+        : [];
+      const supplyText = entry.kind === 'supply'
+        ? `${entry.buyQty} x ${entry.name || 'Unnamed'} (${supplyDetails.join('; ')})${entry.url ? ` ${entry.url}` : ''}`
+        : null;
+      const text = supplyText ?? (`${entry.qty} sheet${entry.qty === 1 ? '' : 's'} of ${entry.name}${thickness}, `
+        + `${formatLength(entry.widthIn, system)} x ${formatLength(entry.lengthIn, system)}`);
+      const rows = wrap(text, BODY - 13, FONT.body);
+      room(rows.length * LINE + 2);
       pg.checkbox(MARGIN, top);
-      pg.text(
-        `${entry.qty} sheet${entry.qty === 1 ? '' : 's'} of ${entry.name}${thickness}, `
-        + `${formatLength(entry.widthIn, system)} x ${formatLength(entry.lengthIn, system)}`,
-        MARGIN + 13, top,
-      );
-      top += LINE + 2;
+      for (const row of rows) {
+        pg.text(row, MARGIN + 13, top);
+        top += LINE;
+      }
+      top += 2;
     }
     top += 8;
   }

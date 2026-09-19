@@ -63,9 +63,10 @@ export function planProject(project) {
 
   // Derived here, with the layout, not in a renderer: nothing downstream
   // re-derives a layout, and what to buy is part of the layout's result. One
-  // entry per group that ran short, which is what makes it a single list for
-  // the whole project rather than a banner per group.
-  const shoppingList = materials
+  // entry per group that ran short, followed by the project's non-cut supplies.
+  // That makes it a single list for the whole project rather than a banner per
+  // group or a separate hardware list.
+  const materialShoppingList = materials
     .filter((materialPlan) => materialPlan.extraSheetsNeeded > 0)
     .map((materialPlan) => ({
       materialId: materialPlan.materialId,
@@ -76,6 +77,16 @@ export function planProject(project) {
       lengthIn: materialPlan.buySpec.lengthIn,
       label: materialPlan.buySpec.label,
     }));
+
+  const supplyShoppingList = project.supplies
+    .filter((supply) => !supply.onHand)
+    .map((supply) => ({
+      kind: 'supply',
+      ...supply,
+      buyQty: Math.ceil(supply.qty / supply.packQty),
+    }));
+
+  const shoppingList = [...materialShoppingList, ...supplyShoppingList];
 
   return {
     projectName: project.name,

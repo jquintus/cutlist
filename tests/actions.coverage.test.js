@@ -41,6 +41,7 @@ const project = normalizeProject({
     { id: 'p1', name: 'Base', qty: 1, widthIn: 20, lengthIn: 30, materialId: 'm1' },
     { id: 'p2', name: 'Fence', qty: 2, widthIn: 3.5, lengthIn: 20, materialId: 'm2' },
   ],
+  supplies: [{ id: 's1', name: 'Glue', qty: 1, packQty: 1, onHand: false, price: '', note: '', url: '' }],
 });
 
 /** Actions handled somewhere other than the ACTIONS table. */
@@ -71,7 +72,7 @@ test('the reorder and sort controls are actually rendered', () => {
   const html = renderForms(project, new Map(), null, { meta: true, materials: true, parts: true }, null);
   // Named one by one rather than counted, so deleting a control's markup fails
   // here instead of quietly shrinking a total nobody reads.
-  for (const action of ['move-part', 'move-material', 'move-sheet', 'sort-parts', 'sort-sheets']) {
+  for (const action of ['move-part', 'move-material', 'move-sheet', 'move-supply', 'sort-parts', 'sort-sheets']) {
     assert.ok(html.includes(`data-action="${action}"`), `${action} is not rendered anywhere`);
   }
 });

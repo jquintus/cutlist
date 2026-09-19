@@ -16,9 +16,23 @@ function finitePositive(value) {
   return Number.isFinite(parsed) && parsed > 0;
 }
 
+function positiveInteger(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0;
+}
+
 function finiteNonNegative(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0;
+}
+
+function safeHttpUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function hasObjectShape(raw) {
@@ -130,6 +144,45 @@ function unplannedWellFormed(raw) {
   return null;
 }
 
+function suppliesWellFormed(raw) {
+  if (raw.supplies !== undefined && !Array.isArray(raw.supplies)) {
+    return { field: 'supplies', message: 'The supplies are not a list.' };
+  }
+  const ids = new Set();
+  for (const supply of raw.supplies ?? []) {
+    if (!isPlainObject(supply)) {
+      return { field: 'supplies', message: 'One of the supplies is not an object.' };
+    }
+    if (supply.name !== undefined && typeof supply.name !== 'string') {
+      return { field: 'supplies', message: 'A supply has a name that is not text.' };
+    }
+    const label = supply.name?.trim() || 'Unnamed';
+    if (supply.qty !== undefined && !positiveInteger(supply.qty)) {
+      return { field: 'supplies', message: `Supply "${label}" needs a positive whole-number quantity.` };
+    }
+    if (supply.packQty !== undefined && !positiveInteger(supply.packQty)) {
+      return { field: 'supplies', message: `Supply "${label}" needs a positive whole-number per-pack quantity.` };
+    }
+    for (const field of ['unit', 'price', 'note', 'url']) {
+      if (supply[field] !== undefined && typeof supply[field] !== 'string') {
+        return { field: 'supplies', message: `Supply "${label}" has a ${field} that is not text.` };
+      }
+    }
+    if (supply.onHand !== undefined && typeof supply.onHand !== 'boolean') {
+      return { field: 'supplies', message: `Supply "${label}" has an on-hand value that is not true or false.` };
+    }
+    if (supply.url !== undefined && supply.url !== '' && !safeHttpUrl(supply.url)) {
+      return { field: 'supplies', message: `Supply "${label}" has a link that is not an http or https URL.` };
+    }
+    const id = supply.id === undefined || supply.id === null ? '' : String(supply.id);
+    if (id !== '' && ids.has(id)) {
+      return { field: 'supplies', message: `More than one supply uses the id "${id}".` };
+    }
+    if (id !== '') ids.add(id);
+  }
+  return null;
+}
+
 function paramsWellFormed(raw) {
   if (raw.params === undefined) return null;
   if (!isPlainObject(raw.params)) {
@@ -150,6 +203,7 @@ export const VALIDATORS = Object.freeze([
   schemaVersionSupported,
   materialsWellFormed,
   partsWellFormed,
+  suppliesWellFormed,
   unplannedWellFormed,
   paramsWellFormed,
 ]);

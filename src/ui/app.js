@@ -18,6 +18,7 @@ import { validateProject } from '../io/validate.js';
 import { createProjectStore, exportProjectJson, readProjectJson, checkReadsBack } from '../io/importExport.js';
 import { loadProjectIndex, loadProjectFile } from '../io/projects.js';
 import { encodeProject, decodeHash } from '../share/codec.js';
+import { loadRecovery, saveRecovery } from '../share/recovery.js';
 import { directUpload } from '../share/upload.js';
 import { THICKNESS_PRESETS, SHEET_PRESETS, thicknessLabelFor } from '../units.js';
 import { buildPdf } from '../export/pdf.js';
@@ -52,7 +53,7 @@ let sheetSort = null;
 // Which input sections are expanded. Read back off the DOM before each render,
 // because the whole form is rebuilt on every keystroke and a section that
 // collapsed itself mid-edit would be worse than not collapsing at all.
-const openSections = { meta: false, materials: true, parts: true };
+const openSections = { meta: false, materials: true, parts: true, supplies: true };
 
 function readOpenSections() {
   for (const panel of document.querySelectorAll('[data-panel]')) {
@@ -76,7 +77,7 @@ const el = {
 };
 
 function setStatus(message, tone = 'muted') {
-  el.status.className = tone === 'error' ? 'banner-warn' : 'muted';
+  el.status.className = `status ${tone === 'error' ? 'banner-warn' : 'muted'}`;
   el.status.textContent = message;
 }
 
@@ -188,6 +189,7 @@ function update(mutate) {
   const draft = structuredClone(store.current);
   mutate(draft);
   store.load(normalizeProject(draft));
+  saveRecovery(sessionStorage, store.current);
   render();
 }
 
@@ -215,6 +217,16 @@ const uiState = new Map();
 
 function setControlMode(id, sizeMode) {
   uiState.set(id, { ...(uiState.get(id) ?? {}), sizeMode });
+}
+
+function setSupplyEditing(id, editing) {
+  uiState.set(id, { ...(uiState.get(id) ?? {}), editing });
+}
+
+function finishAllSupplyEdits() {
+  for (const [supplyId, state] of uiState) {
+    uiState.set(supplyId, { ...state, editing: false });
+  }
 }
 
 /**
@@ -324,8 +336,32 @@ function getPath(target, path) {
   return path.split('.').reduce((cursor, key) => (cursor === undefined || cursor === null ? undefined : cursor[key]), target);
 }
 
-const NUMERIC_FIELDS = /(\.|^)(kerfIn|edgeTrimIn|widthIn|lengthIn|qty|thicknessIn)$/;
+const NUMERIC_FIELDS = /(\.|^)(kerfIn|edgeTrimIn|widthIn|lengthIn|qty|packQty|thicknessIn)$/;
 const SHEET_DIMENSION = /^materials\.(\d+)\.sheets\.(\d+)\.(widthIn|lengthIn)$/;
+const SUPPLY_COUNT = /^supplies\.\d+\.(qty|packQty)$/;
+
+function invalidSupplyCountIn(row) {
+  return [...row.querySelectorAll('[data-field]')].find((field) => {
+    if (!SUPPLY_COUNT.test(field.dataset.field) || field.value === '') return false;
+    const value = Number(field.value);
+    return !Number.isInteger(value) || value <= 0;
+  }) ?? null;
+}
+
+function rejectInvalidSupplyCount(action) {
+  const invalid = [...el.forms.querySelectorAll('.supply-edit')]
+    .map((row) => invalidSupplyCountIn(row))
+    .find(Boolean);
+  if (!invalid) return false;
+  setStatus(`Fix the highlighted supply quantity before ${action}.`, 'error');
+  invalid.focus();
+  return true;
+}
+
+function hasInvalidLiveSupplyCount() {
+  return [...el.forms.querySelectorAll('.supply-edit')]
+    .some((row) => invalidSupplyCountIn(row) !== null);
+}
 
 /**
  * Resize a sheet, keeping its heading honest.
@@ -341,9 +377,9 @@ function resizeSheet(sheet, change) {
   if (wasDerived) sheet.label = `${sheet.widthIn} x ${sheet.lengthIn}`;
 }
 
-function applyFieldChange(fieldPath, input) {
-  update((draft) => {
-    if (fieldPath.endsWith('.grainLocked')) {
+function applyFieldChange(fieldPath, input, { deferRender = false } = {}) {
+  const mutate = (draft) => {
+    if (input.type === 'checkbox') {
       setPath(draft, fieldPath, input.checked === true);
       return;
     }
@@ -390,6 +426,11 @@ function applyFieldChange(fieldPath, input) {
       syncSheetSizeMode(sheet);
       return;
     }
+    if (SUPPLY_COUNT.test(fieldPath)) {
+      const count = Number(input.value);
+      if (Number.isInteger(count) && count > 0) setPath(draft, fieldPath, count);
+      return;
+    }
     if (NUMERIC_FIELDS.test(fieldPath)) {
       // Half-typed text keeps the number entered so far rather than snapping to
       // zero, so a decimal inch survives the keystroke that starts it.
@@ -397,7 +438,35 @@ function applyFieldChange(fieldPath, input) {
       return;
     }
     setPath(draft, fieldPath, input.value);
-  });
+  };
+
+  if (!deferRender) {
+    update(mutate);
+    return;
+  }
+
+  const draft = structuredClone(store.current);
+  mutate(draft);
+  store.load(normalizeProject(draft));
+  saveRecovery(sessionStorage, store.current);
+  debouncedWriteHash(store.current);
+
+  const typedInvalidCount = SUPPLY_COUNT.test(fieldPath)
+    && input.value !== ''
+    && (!Number.isInteger(Number(input.value)) || Number(input.value) <= 0);
+  const checked = validateProject(store.current);
+  const message = typedInvalidCount ? 'Supply quantities must be positive whole numbers.' : (checked.ok ? '' : checked.message);
+  setStatus(message, message === '' ? 'muted' : 'error');
+
+  // Need and Per pack affect one value in the row. Updating that output in
+  // place keeps it live without rebuilding the entire form and layout for
+  // every character typed.
+  const supplyMatch = /^supplies\.(\d+)\.(qty|packQty)$/.exec(fieldPath);
+  if (supplyMatch !== null) {
+    const supply = store.current.supplies[Number(supplyMatch[1])];
+    const output = input.closest('.supply-grid-row')?.querySelector('.supply-buy output');
+    if (supply && output) output.textContent = String(Math.ceil(supply.qty / supply.packQty));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -521,6 +590,7 @@ const ACTIONS = {
     }
   },
   'move-part': (draft, dataset) => moveWithin(draft.parts, dataset),
+  'move-supply': (draft, dataset) => moveWithin(draft.supplies, dataset),
   'move-material': (draft, dataset) => moveWithin(draft.materials, dataset),
   'move-sheet': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].sheets, dataset),
   'remove-sheet': (draft, dataset) => {
@@ -540,6 +610,27 @@ const ACTIONS = {
   'remove-part': (draft, dataset) => {
     draft.parts.splice(Number(dataset.part), 1);
   },
+  'add-supply': (draft) => {
+    finishAllSupplyEdits();
+    const id = mintId('s', draft.supplies.length + 1);
+    draft.supplies.push({
+      id,
+      name: '',
+      qty: 1,
+      packQty: 1,
+      onHand: false,
+      price: '',
+      note: '',
+      url: '',
+    });
+    setSupplyEditing(id, true);
+  },
+  'edit-supply': (_draft, dataset) => setSupplyEditing(dataset.supplyId, true),
+  'finish-supply-edit': (_draft, dataset) => setSupplyEditing(dataset.supplyId, false),
+  'remove-supply': (draft, dataset) => {
+    uiState.delete(dataset.supplyId);
+    draft.supplies.splice(Number(dataset.supply), 1);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -555,11 +646,12 @@ const ACTIONS = {
  */
 function refreshSheetLinks() {
   const base = location.hash.split('&')[0];
+  const done = view.ticked?.size ? `&done=${[...view.ticked].map(encodeURIComponent).join(',')}` : '';
   for (const link of document.querySelectorAll('[data-sheet-link]')) {
     link.setAttribute('href', `${base}&sheet=${encodeURIComponent(link.dataset.sheetLink)}`);
   }
   for (const link of document.querySelectorAll('[data-view-link]')) {
-    link.setAttribute('href', `${base}&view=${encodeURIComponent(link.dataset.viewLink)}`);
+    link.setAttribute('href', `${base}&view=${encodeURIComponent(link.dataset.viewLink)}${done}`);
   }
 }
 
@@ -596,8 +688,11 @@ function saveTextFile(filename, data, type) {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // WebKit may not begin reading the blob until after click() returns.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 async function copyShareLink(button) {
@@ -624,6 +719,7 @@ async function copyShareLink(button) {
  */
 function updateUploadLink(project) {
   const result = directUpload(project);
+  el.uploadLink.removeAttribute('aria-disabled');
   if (result.kind === 'url') {
     el.uploadLink.href = result.url;
     el.uploadLink.removeAttribute('download');
@@ -644,7 +740,9 @@ function loadProject(project) {
   // length no longer match.
   uiState.clear();
   view.rotated = {};
+  view.ticked.clear();
   store.load(project);
+  saveRecovery(sessionStorage, store.current);
   render();
 }
 
@@ -684,7 +782,21 @@ async function openIndexedProject(file) {
 // 'change'. Listening for both with the same handler covers every field type.
 function onFieldEvent(event) {
   const fieldPath = event.target.dataset?.field;
-  if (fieldPath) applyFieldChange(fieldPath, event.target);
+  if (!fieldPath) return;
+  const supplyEditor = event.target.closest?.('.supply-edit');
+  applyFieldChange(fieldPath, event.target, { deferRender: supplyEditor !== null });
+  if (SUPPLY_COUNT.test(fieldPath)) {
+    const value = Number(event.target.value);
+    const invalid = event.target.value !== '' && (!Number.isInteger(value) || value <= 0);
+    event.target.toggleAttribute('aria-invalid', invalid);
+    if (hasInvalidLiveSupplyCount()) {
+      el.uploadLink.removeAttribute('href');
+      el.uploadLink.removeAttribute('download');
+      el.uploadLink.setAttribute('aria-disabled', 'true');
+    } else {
+      updateUploadLink(store.current);
+    }
+  }
 }
 
 el.forms.addEventListener('change', (event) => {
@@ -696,6 +808,21 @@ el.forms.addEventListener('change', (event) => {
 
 el.forms.addEventListener('input', onFieldEvent);
 el.forms.addEventListener('change', onFieldEvent);
+
+el.forms.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.target.tagName === 'TEXTAREA') return;
+  const row = event.target.closest?.('.supply-edit[data-supply-id]');
+  if (!row) return;
+  event.preventDefault();
+  const invalid = invalidSupplyCountIn(row);
+  if (invalid) {
+    setStatus('Supply quantities must be positive whole numbers.', 'error');
+    invalid.focus();
+    return;
+  }
+  setSupplyEditing(row.dataset.supplyId, false);
+  render();
+});
 
 // The nudge buttons beside a measurement. They read the field's stored value
 // rather than the box's text, so a half-typed entry is never stepped into
@@ -716,6 +843,16 @@ el.forms.addEventListener('click', (event) => {
 el.forms.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action]');
   if (!button) return;
+  if (button.dataset.action === 'finish-supply-edit') {
+    const row = button.closest('.supply-edit');
+    const invalid = invalidSupplyCountIn(row);
+    if (invalid) {
+      event.preventDefault();
+      setStatus('Supply quantities must be positive whole numbers.', 'error');
+      invalid.focus();
+      return;
+    }
+  }
   const action = ACTIONS[button.dataset.action];
   if (action) update((draft) => action(draft, button.dataset));
 });
@@ -752,7 +889,13 @@ document.addEventListener('keydown', (event) => {
   menuButton.focus();
 });
 
-shareButton.addEventListener('click', () => copyShareLink(shareButton));
+shareButton.addEventListener('click', () => {
+  if (!rejectInvalidSupplyCount('copying a share link')) copyShareLink(shareButton);
+});
+
+el.uploadLink.addEventListener('click', (event) => {
+  if (rejectInvalidSupplyCount('saving to GitHub')) event.preventDefault();
+});
 
 // New project is a plain link to this page with no fragment, so it behaves like
 // Save to GitHub: middle-click or cmd-click opens a blank project in a tab of
@@ -766,6 +909,7 @@ document.getElementById('btn-open').addEventListener('click', () => el.openDialo
 // already said what they wanted, and produced whatever the browser's page
 // setup happened to be rather than a page built for this.
 document.getElementById('btn-pdf').addEventListener('click', () => {
+  if (rejectInvalidSupplyCount('exporting a PDF')) return;
   const project = store.current;
   const bytes = buildPdf(planProject(project), { title: project.name || 'cutlist' });
   const name = (project.name || 'cutlist').replace(/[^\w -]+/g, '').trim() || 'cutlist';
@@ -774,21 +918,31 @@ document.getElementById('btn-pdf').addEventListener('click', () => {
 });
 
 document.getElementById('btn-export').addEventListener('click', () => {
+  if (rejectInvalidSupplyCount('exporting')) return;
   // A file this build would refuse to import is not a backup of anything, so
   // it is better not written: Export answers to the same chain Import does.
   const checked = checkReadsBack(store.current);
   if (!checked.ok) {
     setStatus(`Not exported. ${checked.message}`, 'error');
+    el.status.scrollIntoView({ block: 'nearest' });
     return;
   }
+  finishAllSupplyEdits();
+  render();
   const json = exportProjectJson(store.current);
-  saveTextFile(`${store.current.name || 'project'}.json`, json, 'application/json');
+  const baseName = (store.current.name || 'project').replace(/[^\w -]+/g, '').trim() || 'project';
+  const filename = `${baseName}.json`;
+  saveTextFile(filename, json, 'application/json');
+  setStatus(`Saved ${filename}`);
 });
 document.getElementById('btn-import').addEventListener('click', () => el.importFile.click());
 
 // A reload right after typing should not land on a hash from before the last
 // few keystrokes just because the debounce window had not closed yet.
-window.addEventListener('pagehide', () => debouncedWriteHash.flush());
+window.addEventListener('pagehide', () => {
+  saveRecovery(sessionStorage, store.current);
+  debouncedWriteHash.flush();
+});
 
 el.importFile.addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
@@ -854,12 +1008,25 @@ view.focusView = viewFromHash();
 view.ticked = ticksFromHash();
 
 const restored = decodeHash(location.hash);
+const navigation = performance.getEntriesByType?.('navigation')?.[0];
+const reloadLostHash = location.hash === '' && navigation?.type === 'reload';
+let startupStatus = '';
+let startupStatusKind = '';
 if (restored.ok) {
   store.load(restored.project);
-} else if (location.hash.startsWith('#pako:')) {
-  setStatus(restored.error, 'error');
+} else if (location.hash !== '' || reloadLostHash) {
+  const recovery = loadRecovery(sessionStorage);
+  if (recovery.ok) {
+    store.load(recovery.project);
+    startupStatus = 'The project URL could not be read. Your last edit was recovered from this tab.';
+  } else if (location.hash !== '') {
+    startupStatus = restored.error;
+    startupStatusKind = 'error';
+  }
 }
+saveRecovery(sessionStorage, store.current);
 document.body.classList.toggle('focus-sheet', view.focusSheet !== null || view.focusView !== null);
 render();
+if (startupStatus !== '') setStatus(startupStatus, startupStatusKind);
 refreshSheetLinks();
 populatePicker();
