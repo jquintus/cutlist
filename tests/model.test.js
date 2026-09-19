@@ -70,6 +70,16 @@ test('normalizeProject preserves board material and stock fields', () => {
   }]);
 });
 
+test('normalizeProject derives a board name from species and dimensions', () => {
+  const project = normalizeProject({
+    materials: [{
+      id: 'cherry', kind: 'board', species: 'Cherry', thicknessIn: '0.25', widthIn: '3',
+      boards: [{ lengthIn: 60, qty: 1 }],
+    }],
+  });
+  assert.equal(project.materials[0].name, 'Cherry 1/4 in × 3 in');
+});
+
 test('normalizeProject does not mutate its argument', () => {
   const input = { materials: [{ name: 'Ply' }], parts: [{ name: 'Base', widthIn: '12' }] };
   const before = JSON.stringify(input);

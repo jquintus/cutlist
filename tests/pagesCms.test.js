@@ -11,8 +11,14 @@ test('Pages CMS exposes Storage as a protected structured JSON file', async () =
   assert.match(config, /name: sheet\n\s+label: Sheet goods[\s\S]*name: sheets/);
   assert.match(config, /name: board\n\s+label: Boards[\s\S]*name: boards/);
   assert.doesNotMatch(config, /name: displaySystem|name: thicknessLabel|name: color|name: params/);
+  assert.match(config, /name: species\n\s+label: Species\n\s+type: reference/);
+  assert.match(config, /collection: wood_species/);
+  assert.match(config, /collection: stock_thicknesses/);
+  assert.match(config, /collection: board_widths/);
+  assert.match(config, /value: "\{primary\}"/);
+  assert.equal(config.match(/value: "\{fields\.inches\}"/g)?.length, 3);
   assert.equal(config.match(/hidden: true/g)?.length, 4);
   assert.equal(config.match(/generate: false/g)?.length, 4);
-  assert.equal(config.match(/step: 0\.001/g)?.length, 6);
+  assert.equal(config.match(/step: 0\.001/g)?.length, 5);
   assert.equal(config.match(/step: 1$/gm)?.length, 2);
 });

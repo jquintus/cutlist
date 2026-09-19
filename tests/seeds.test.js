@@ -124,8 +124,13 @@ test('storage.json contains only physical inventory', async () => {
   const storage = await loadSeed('storage.json');
   assert.equal(storage.library, true);
   for (const material of storage.materials) {
-    const physical = material.sheets.filter((sheet) => sheet.qty > 0);
+    const stock = material.kind === 'board' ? material.boards : material.sheets;
+    const physical = stock.filter((item) => item.qty > 0);
     assert.ok(physical.length > 0, `${material.name} has no physical stock`);
-    assert.ok(material.sheets.every((sheet) => sheet.qty > 0), `${material.name} contains non-inventory stock`);
+    assert.ok(stock.every((item) => item.qty > 0), `${material.name} contains non-inventory stock`);
   }
+  assert.deepEqual(
+    storage.materials.filter((material) => material.kind === 'board').map((material) => material.name),
+    ['Cherry 1/4 in × 3 in', 'Cherry 1/4 in × 5 in'],
+  );
 });

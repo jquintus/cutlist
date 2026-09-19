@@ -25,7 +25,7 @@ content:
         list:
           collapsible:
             collapsed: true
-            summary: "{name}"
+            summary: "{species}{name}"
         blocks:
           - name: sheet
             label: Sheet goods
@@ -42,11 +42,13 @@ content:
                 description: Examples include 1/2 in plywood and 3/4 in MDF.
               - name: thicknessIn
                 label: Thickness (inches)
-                type: number
+                type: reference
                 required: true
                 options:
-                  min: 0.001
-                  step: 0.001
+                  collection: stock_thicknesses
+                  search: "label,inches"
+                  value: "{fields.inches}"
+                  label: "{fields.label}"
               - name: note
                 label: Notes
                 type: text
@@ -97,25 +99,33 @@ content:
                 hidden: true
                 options:
                   generate: false
-              - name: name
-                label: Material
-                type: string
+              - name: species
+                label: Species
+                type: reference
                 required: true
-                description: Examples include cherry and construction pine.
+                options:
+                  collection: wood_species
+                  search: "name"
+                  value: "{primary}"
+                  label: "{primary}"
               - name: thicknessIn
                 label: Thickness (inches)
-                type: number
+                type: reference
                 required: true
                 options:
-                  min: 0.001
-                  step: 0.001
+                  collection: stock_thicknesses
+                  search: "label,inches"
+                  value: "{fields.inches}"
+                  label: "{fields.label}"
               - name: widthIn
                 label: Board width (inches)
-                type: number
+                type: reference
                 required: true
                 options:
-                  min: 0.001
-                  step: 0.001
+                  collection: board_widths
+                  search: "label,inches"
+                  value: "{fields.inches}"
+                  label: "{fields.label}"
               - name: note
                 label: Notes
                 type: text
@@ -151,3 +161,75 @@ content:
                   - name: note
                     label: Notes
                     type: text
+  - name: inventory_options
+    label: Inventory options
+    type: group
+    items:
+      - name: wood_species
+        label: Wood species
+        type: collection
+        path: inventory/species
+        format: json
+        filename: "{primary}.json"
+        view:
+          primary: name
+          search: [name]
+          sort: [name]
+          default:
+            sort: name
+            order: asc
+        fields:
+          - name: name
+            label: Species
+            type: string
+            required: true
+      - name: stock_thicknesses
+        label: Thicknesses
+        type: collection
+        path: inventory/thicknesses
+        format: json
+        filename: "{label}.json"
+        view:
+          primary: label
+          fields: [inches]
+          sort: [inches]
+          default:
+            sort: inches
+            order: asc
+        fields:
+          - name: label
+            label: Display name
+            type: string
+            required: true
+          - name: inches
+            label: Inches
+            type: number
+            required: true
+            options:
+              min: 0.001
+              step: 0.001
+      - name: board_widths
+        label: Board widths
+        type: collection
+        path: inventory/widths
+        format: json
+        filename: "{label}.json"
+        view:
+          primary: label
+          fields: [inches]
+          sort: [inches]
+          default:
+            sort: inches
+            order: asc
+        fields:
+          - name: label
+            label: Display name
+            type: string
+            required: true
+          - name: inches
+            label: Inches
+            type: number
+            required: true
+            options:
+              min: 0.001
+              step: 0.001

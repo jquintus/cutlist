@@ -1,6 +1,8 @@
 // The canonical project shape. Everything downstream computes over this and
 // nothing else re-parses raw user input.
 
+import { formatLength, thicknessLabelFor } from './units.js';
+
 export const SCHEMA_VERSION = 3;
 
 export const DEFAULT_KERF_IN = 0.125;
@@ -74,17 +76,25 @@ function inventoryRef(value) {
 export function normalizeProject(raw) {
   const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const rawParams = source.params && typeof source.params === 'object' ? source.params : {};
+  const displaySystem = source.displaySystem === 'metric' ? 'metric' : 'imperial';
 
   const materials = arr(source.materials).map((rawMaterial, materialIndex) => {
     const material = rawMaterial && typeof rawMaterial === 'object' ? rawMaterial : {};
     const materialId = str(material.id) || `m${materialIndex + 1}`;
+    const kind = material.kind === 'board' ? 'board' : 'sheet';
+    const thicknessIn = num(material.thicknessIn, 0);
+    const widthIn = num(material.widthIn, 0);
+    const species = str(material.species).trim();
+    const derivedName = kind === 'board' && species !== ''
+      ? `${species} ${thicknessLabelFor(thicknessIn, displaySystem)} × ${formatLength(widthIn, displaySystem)}`
+      : `Material ${materialIndex + 1}`;
     return {
       id: materialId,
-      name: str(material.name, `Material ${materialIndex + 1}`),
-      kind: material.kind === 'board' ? 'board' : 'sheet',
-      thicknessIn: num(material.thicknessIn, 0),
+      name: str(material.name).trim() || derivedName,
+      kind,
+      thicknessIn,
       thicknessLabel: str(material.thicknessLabel),
-      widthIn: num(material.widthIn, 0),
+      widthIn,
       note: str(material.note),
       color: str(material.color) || MATERIAL_COLORS[materialIndex % MATERIAL_COLORS.length],
       sheets: arr(material.sheets).map((rawSheet, sheetIndex) => {
@@ -174,7 +184,7 @@ export function normalizeProject(raw) {
     library: source.library === true,
     date: str(source.date),
     notes: str(source.notes),
-    displaySystem: source.displaySystem === 'metric' ? 'metric' : 'imperial',
+    displaySystem,
     params: {
       kerfIn: num(rawParams.kerfIn, DEFAULT_KERF_IN),
       edgeTrimIn: num(rawParams.edgeTrimIn, DEFAULT_EDGE_TRIM_IN),
