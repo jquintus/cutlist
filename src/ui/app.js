@@ -27,6 +27,12 @@ import { renderResults } from './renderResults.js';
 import { readNumericEntry, entryText } from './numericEntry.js';
 import { escapeHtml } from './escape.js';
 import { debounce } from './debounce.js';
+import {
+  beginRowEditing as beginRowEditingState,
+  cancelRowEditing as cancelRowEditingState,
+  finishAllRowEdits as finishAllRowEditsState,
+  finishRowEditing as finishRowEditingState,
+} from './rowEditing.js';
 
 // Deflating and base64-encoding the whole project is real work, and a phone
 // keyboard can fire an 'input' event every few tens of milliseconds. Doing
@@ -219,14 +225,20 @@ function setControlMode(id, sizeMode) {
   uiState.set(id, { ...(uiState.get(id) ?? {}), sizeMode });
 }
 
-function setSupplyEditing(id, editing) {
-  uiState.set(id, { ...(uiState.get(id) ?? {}), editing });
+function beginRowEditing(id, project) {
+  beginRowEditingState(uiState, id, project);
 }
 
-function finishAllSupplyEdits() {
-  for (const [supplyId, state] of uiState) {
-    uiState.set(supplyId, { ...state, editing: false });
-  }
+function finishRowEditing(id) {
+  finishRowEditingState(uiState, id);
+}
+
+function cancelRowEditing(project, id) {
+  cancelRowEditingState(uiState, project, id);
+}
+
+function finishAllRowEdits() {
+  finishAllRowEditsState(uiState);
 }
 
 /**
@@ -523,6 +535,7 @@ const ACTIONS = {
   // removal and a control mode keyed by sheet id would migrate onto a different
   // sheet.
   'add-material': (draft, dataset) => {
+    finishAllRowEdits();
     const kind = dataset.kind === 'board' ? 'board' : 'sheet';
     const materialId = mintId('m', draft.materials.length + 1);
     draft.materials.push({
@@ -544,15 +557,24 @@ const ACTIONS = {
         ? [{ id: `${materialId}b1`, label: '', lengthIn: 96, qty: 1, note: '' }]
         : [],
     });
+    beginRowEditing(materialId, draft);
+    beginRowEditing(`${materialId}${kind === 'sheet' ? 's' : 'b'}1`, draft);
   },
   'remove-material': (draft, dataset) => {
+    const material = draft.materials[Number(dataset.material)];
+    if (material) {
+      uiState.delete(material.id);
+      for (const stock of [...material.sheets, ...material.boards]) uiState.delete(stock.id);
+    }
     draft.materials.splice(Number(dataset.material), 1);
   },
   'add-sheet': (draft) => {
     const material = draft.materials.find((candidate) => candidate.kind !== 'board');
     if (material === undefined) return;
+    finishAllRowEdits();
+    const id = mintId(`${material.id}s`, material.sheets.length + 1);
     material.sheets.push({
-      id: mintId(`${material.id}s`, material.sheets.length + 1),
+      id,
       // Empty note: sheetLabel() falls back to the sheet's own dimensions for
       // the heading, so nothing is lost by not inventing one.
       label: '',
@@ -561,17 +583,21 @@ const ACTIONS = {
       qty: 1,
       note: '',
     });
+    beginRowEditing(id, draft);
   },
   'add-board': (draft) => {
     const material = draft.materials.find((candidate) => candidate.kind === 'board');
     if (material === undefined) return;
+    finishAllRowEdits();
+    const id = mintId(`${material.id}b`, material.boards.length + 1);
     material.boards.push({
-      id: mintId(`${material.id}b`, material.boards.length + 1),
+      id,
       label: '',
       lengthIn: 96,
       qty: 1,
       note: '',
     });
+    beginRowEditing(id, draft);
   },
   // Changing a sheet's material moves it between the two lists. The sheet keeps
   // its id, so a control mode set on it follows it across.
@@ -665,15 +691,19 @@ const ACTIONS = {
   'move-sheet': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].sheets, dataset),
   'move-board': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].boards, dataset),
   'remove-sheet': (draft, dataset) => {
+    uiState.delete(dataset.rowId);
     draft.materials[Number(dataset.material)].sheets.splice(Number(dataset.sheet), 1);
   },
   'remove-board': (draft, dataset) => {
+    uiState.delete(dataset.rowId);
     draft.materials[Number(dataset.material)].boards.splice(Number(dataset.board), 1);
   },
   'add-part': (draft) => {
+    finishAllRowEdits();
     const material = draft.materials[0];
+    const id = mintId('p', draft.parts.length + 1);
     draft.parts.push({
-      id: mintId('p', draft.parts.length + 1),
+      id,
       name: '',
       qty: 1,
       widthIn: material?.kind === 'board' ? material.widthIn : 12,
@@ -681,12 +711,14 @@ const ACTIONS = {
       materialId: material?.id ?? '',
       grainLocked: false,
     });
+    beginRowEditing(id, draft);
   },
   'remove-part': (draft, dataset) => {
+    uiState.delete(dataset.rowId);
     draft.parts.splice(Number(dataset.part), 1);
   },
   'add-supply': (draft) => {
-    finishAllSupplyEdits();
+    finishAllRowEdits();
     const id = mintId('s', draft.supplies.length + 1);
     draft.supplies.push({
       id,
@@ -698,10 +730,11 @@ const ACTIONS = {
       note: '',
       url: '',
     });
-    setSupplyEditing(id, true);
+    beginRowEditing(id, draft);
   },
-  'edit-supply': (_draft, dataset) => setSupplyEditing(dataset.supplyId, true),
-  'finish-supply-edit': (_draft, dataset) => setSupplyEditing(dataset.supplyId, false),
+  'edit-row': (draft, dataset) => beginRowEditing(dataset.rowId, draft),
+  'finish-row-edit': (_draft, dataset) => finishRowEditing(dataset.rowId),
+  'cancel-row-edit': (draft, dataset) => cancelRowEditing(draft, dataset.rowId),
   'remove-supply': (draft, dataset) => {
     uiState.delete(dataset.supplyId);
     draft.supplies.splice(Number(dataset.supply), 1);
@@ -900,17 +933,23 @@ el.forms.addEventListener('input', onFieldEvent);
 el.forms.addEventListener('change', onFieldEvent);
 
 el.forms.addEventListener('keydown', (event) => {
-  if (event.key !== 'Enter' || event.target.tagName === 'TEXTAREA') return;
-  const row = event.target.closest?.('.supply-edit[data-supply-id]');
+  if (!['Enter', 'Escape'].includes(event.key)) return;
+  if (event.key === 'Enter' && event.target.tagName === 'TEXTAREA') return;
+  const row = event.target.closest?.('.row-edit[data-row-id], .supply-edit[data-supply-id]');
   if (!row) return;
   event.preventDefault();
-  const invalid = invalidSupplyCountIn(row);
-  if (invalid) {
+  const rowId = row.dataset.rowId ?? row.dataset.supplyId;
+  if (event.key === 'Escape') {
+    update((draft) => cancelRowEditing(draft, rowId));
+    return;
+  }
+  const invalid = row.classList.contains('supply-edit') ? invalidSupplyCountIn(row) : null;
+  if (invalid !== null) {
     setStatus('Supply quantities must be positive whole numbers.', 'error');
     invalid.focus();
     return;
   }
-  setSupplyEditing(row.dataset.supplyId, false);
+  finishRowEditing(rowId);
   render();
 });
 
@@ -940,7 +979,7 @@ el.forms.addEventListener('click', (event) => {
 el.forms.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action]');
   if (!button) return;
-  if (button.dataset.action === 'finish-supply-edit') {
+  if (button.dataset.action === 'finish-row-edit' && button.closest('.supply-edit')) {
     const row = button.closest('.supply-edit');
     const invalid = invalidSupplyCountIn(row);
     if (invalid) {
@@ -1024,7 +1063,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
     el.status.scrollIntoView({ block: 'nearest' });
     return;
   }
-  finishAllSupplyEdits();
+  finishAllRowEdits();
   render();
   const json = exportProjectJson(store.current);
   const baseName = (store.current.name || 'project').replace(/[^\w -]+/g, '').trim() || 'project';

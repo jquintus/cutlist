@@ -44,6 +44,23 @@ function displayPrice(value) {
   return escapeHtml(price.startsWith('$') ? price : `$${price}`);
 }
 
+function displayValue(value, fallback = '&mdash;') {
+  const text = String(value ?? '').trim();
+  return text === '' ? fallback : escapeHtml(text);
+}
+
+function editAttrs(id) {
+  return `data-action="edit-row" data-row-id="${escapeHtml(id)}"`;
+}
+
+function rowActions(id, remove) {
+  return `<span class="row-actions"><button type="button" class="row-edit-action" data-action="finish-row-edit" data-row-id="${escapeHtml(id)}">Done</button>${remove}</span>`;
+}
+
+function viewRowActions(id, remove) {
+  return `<span class="row-actions"><button type="button" class="row-edit-action" data-action="edit-row" data-row-id="${escapeHtml(id)}">Edit</button>${remove}</span>`;
+}
+
 /**
  * A field that holds a measurement or a count.
  *
@@ -179,7 +196,23 @@ function sheetRow(project, materialIndex, sheetIndex, uiState) {
     .map(({ candidate, index }) => option(String(index), candidate.name === '' ? 'Unnamed' : candidate.name, index === materialIndex))
     .join('');
 
-  return `<tr>
+  const remove = `<button type="button" class="row-remove" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}" data-row-id="${escapeHtml(sheet.id)}" title="Remove this ${escapeHtml(sheet.widthIn)} x ${escapeHtml(sheet.lengthIn)} sheet" aria-label="Remove this ${escapeHtml(sheet.widthIn)} by ${escapeHtml(sheet.lengthIn)} sheet">&times;</button>`;
+  if (uiState?.get(sheet.id)?.editing !== true) {
+    const edit = editAttrs(sheet.id);
+    const size = preset?.label ?? 'Custom or offcut';
+    return `<tr class="row-display" data-row-id="${escapeHtml(sheet.id)}">
+      ${reorderCell('move-sheet', sheetIndex, material.sheets.length, `data-material="${materialIndex}"`)}
+      <td ${edit}>${displayValue(material.name, 'Unnamed')}</td>
+      <td ${edit}>${escapeHtml(size)}</td>
+      <td class="num" ${edit}>${escapeHtml(sheet.widthIn)}</td>
+      <td class="num" ${edit}>${escapeHtml(sheet.lengthIn)}</td>
+      <td class="qty num" ${edit}>${escapeHtml(sheet.qty)}</td>
+      <td ${edit}>${displayValue(sheet.label)}</td>
+      <td class="mid">${viewRowActions(sheet.id, remove)}</td>
+    </tr>`;
+  }
+
+  return `<tr class="row-edit" data-row-id="${escapeHtml(sheet.id)}">
     ${reorderCell('move-sheet', sheetIndex, material.sheets.length, `data-material="${materialIndex}"`)}
     <td><select name="sheet-material" data-action-select="move-sheet-to" data-material="${materialIndex}" data-sheet="${sheetIndex}">${owners}</select></td>
     <td><select name="${base}.preset" data-focus-key="${base}.preset" data-field="${base}.preset">${options}${option('custom', 'Custom or offcut', mode === 'custom')}</select></td>
@@ -187,7 +220,7 @@ function sheetRow(project, materialIndex, sheetIndex, uiState) {
     <td class="num">${stepperInput({ key: `${base}.lengthIn`, value: sheet.lengthIn })}</td>
     <td class="qty num"><input type="number" min="0" step="1" name="${base}.qty" data-focus-key="${base}.qty" data-field="${base}.qty" value="${escapeHtml(sheet.qty)}" /></td>
     <td>${textInput({ key: `${base}.label`, value: sheet.label, placeholder: 'Note' })}</td>
-    <td class="mid"><button type="button" class="row-remove" data-action="remove-sheet" data-material="${materialIndex}" data-sheet="${sheetIndex}" title="Remove this ${escapeHtml(sheet.widthIn)} x ${escapeHtml(sheet.lengthIn)} sheet" aria-label="Remove this ${escapeHtml(sheet.widthIn)} by ${escapeHtml(sheet.lengthIn)} sheet">&times;</button></td>
+    <td class="mid">${rowActions(sheet.id, remove)}</td>
   </tr>`;
 }
 
@@ -201,27 +234,50 @@ function materialReorderCell(project, material, index) {
 }
 
 function sheetMaterialRow(project, material, index, uiState) {
-  return `<tr>
+  const remove = `<button type="button" class="row-remove" data-action="remove-material" data-material="${index}" data-row-id="${escapeHtml(material.id)}" title="Remove this material and every sheet of it" aria-label="Remove this material and every sheet of it">&times;</button>`;
+  if (uiState?.get(material.id)?.editing !== true) {
+    const edit = editAttrs(material.id);
+    return `<tr class="row-display" data-row-id="${escapeHtml(material.id)}">
+      ${materialReorderCell(project, material, index)}
+      <td ${edit}>${displayValue(material.name, 'Unnamed')}</td>
+      <td ${edit}>${displayValue(material.thicknessLabel, escapeHtml(material.thicknessIn))}</td>
+      <td ${edit}>${displayValue(material.note)}</td>
+      <td class="mid">${viewRowActions(material.id, remove)}</td>
+    </tr>`;
+  }
+  return `<tr class="row-edit" data-row-id="${escapeHtml(material.id)}">
     ${materialReorderCell(project, material, index)}
     <td>${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}</td>
     <td>${thicknessControl(material, index, uiState, true)}</td>
     <td>${textInput({ key: `materials.${index}.note`, value: material.note, placeholder: 'Group note or tag' })}</td>
-    <td class="mid"><button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove this material and every sheet of it" aria-label="Remove this material and every sheet of it">&times;</button></td>
+    <td class="mid">${rowActions(material.id, remove)}</td>
   </tr>`;
 }
 
 function boardMaterialRow(project, material, index, uiState) {
-  return `<tr>
+  const remove = `<button type="button" class="row-remove" data-action="remove-material" data-material="${index}" data-row-id="${escapeHtml(material.id)}" title="Remove this material and every board of it" aria-label="Remove this material and every board of it">&times;</button>`;
+  if (uiState?.get(material.id)?.editing !== true) {
+    const edit = editAttrs(material.id);
+    return `<tr class="row-display" data-row-id="${escapeHtml(material.id)}">
+      ${materialReorderCell(project, material, index)}
+      <td ${edit}>${displayValue(material.name, 'Unnamed')}</td>
+      <td ${edit}>${displayValue(material.thicknessLabel, escapeHtml(material.thicknessIn))}</td>
+      <td class="num" ${edit}>${escapeHtml(material.widthIn)}</td>
+      <td ${edit}>${displayValue(material.note)}</td>
+      <td class="mid">${viewRowActions(material.id, remove)}</td>
+    </tr>`;
+  }
+  return `<tr class="row-edit" data-row-id="${escapeHtml(material.id)}">
     ${materialReorderCell(project, material, index)}
     <td>${textInput({ key: `materials.${index}.name`, value: material.name, placeholder: 'Material name' })}</td>
     <td>${thicknessControl(material, index, uiState, true)}</td>
     <td class="num">${stepperInput({ key: `materials.${index}.widthIn`, value: material.widthIn })}</td>
     <td>${textInput({ key: `materials.${index}.note`, value: material.note, placeholder: 'Group note or tag' })}</td>
-    <td class="mid"><button type="button" class="row-remove" data-action="remove-material" data-material="${index}" title="Remove this material and every board of it" aria-label="Remove this material and every board of it">&times;</button></td>
+    <td class="mid">${rowActions(material.id, remove)}</td>
   </tr>`;
 }
 
-function boardRow(project, materialIndex, boardIndex) {
+function boardRow(project, materialIndex, boardIndex, uiState) {
   const material = project.materials[materialIndex];
   const board = material.boards[boardIndex];
   const base = `materials.${materialIndex}.boards.${boardIndex}`;
@@ -231,13 +287,26 @@ function boardRow(project, materialIndex, boardIndex) {
     .map(({ candidate, index }) => option(String(index), candidate.name === '' ? 'Unnamed' : candidate.name, index === materialIndex))
     .join('');
 
-  return `<tr>
+  const remove = `<button type="button" class="row-remove" data-action="remove-board" data-material="${materialIndex}" data-board="${boardIndex}" data-row-id="${escapeHtml(board.id)}" title="Remove this ${escapeHtml(board.lengthIn / 12)} ft board" aria-label="Remove this ${escapeHtml(board.lengthIn / 12)} foot board">&times;</button>`;
+  if (uiState?.get(board.id)?.editing !== true) {
+    const edit = editAttrs(board.id);
+    return `<tr class="row-display" data-row-id="${escapeHtml(board.id)}">
+      ${reorderCell('move-board', boardIndex, material.boards.length, `data-material="${materialIndex}"`)}
+      <td ${edit}>${displayValue(material.name, 'Unnamed')}</td>
+      <td class="num" ${edit}>${escapeHtml(board.lengthIn / 12)}</td>
+      <td class="qty num" ${edit}>${escapeHtml(board.qty)}</td>
+      <td ${edit}>${displayValue(board.label)}</td>
+      <td class="mid">${viewRowActions(board.id, remove)}</td>
+    </tr>`;
+  }
+
+  return `<tr class="row-edit" data-row-id="${escapeHtml(board.id)}">
     ${reorderCell('move-board', boardIndex, material.boards.length, `data-material="${materialIndex}"`)}
     <td><select name="board-material" data-action-select="move-board-to" data-material="${materialIndex}" data-board="${boardIndex}">${owners}</select></td>
     <td class="num">${stepperInput({ key: `${base}.lengthFt`, value: board.lengthIn / 12, step: 1 })}</td>
     <td class="qty num"><input type="number" min="0" step="1" name="${base}.qty" data-focus-key="${base}.qty" data-field="${base}.qty" value="${escapeHtml(board.qty)}" /></td>
     <td>${textInput({ key: `${base}.label`, value: board.label, placeholder: 'Lot note' })}</td>
-    <td class="mid"><button type="button" class="row-remove" data-action="remove-board" data-material="${materialIndex}" data-board="${boardIndex}" title="Remove this ${escapeHtml(board.lengthIn / 12)} ft board" aria-label="Remove this ${escapeHtml(board.lengthIn / 12)} foot board">&times;</button></td>
+    <td class="mid">${rowActions(board.id, remove)}</td>
   </tr>`;
 }
 
@@ -264,22 +333,25 @@ function materialsPanel(project, uiState, open, sheetSort) {
   const boards = project.materials
     .filter((material) => material.kind === 'board')
     .flatMap((material) => material.boards
-      .map((board, boardIndex) => boardRow(project, project.materials.indexOf(material), boardIndex)))
+      .map((board, boardIndex) => boardRow(project, project.materials.indexOf(material), boardIndex, uiState)))
     .join('');
 
   const noSheetMaterials = !project.materials.some((material) => material.kind !== 'board');
   const noBoardMaterials = !project.materials.some((material) => material.kind === 'board');
 
   return `<details class="section" data-panel="materials"${open.materials ? ' open' : ''}><summary><h2>Material</h2></summary>
-    <h3 class="sub-head material-kind-head">Sheet goods</h3>
-    <div class="table-scroll"><table class="grid-table">
+    <section class="material-stock-group" aria-labelledby="sheet-goods-heading">
+    <h3 class="sub-head material-kind-head" id="sheet-goods-heading">Sheet goods</h3>
+    <div class="table-scroll"><table class="grid-table row-table sheet-material-table">
+      <colgroup><col class="col-move"><col class="col-name"><col class="col-thickness"><col class="col-note"><col class="col-actions"></colgroup>
       <thead><tr><th class="mid"></th><th>Name</th><th>Thickness</th><th>Note / tag</th><th></th></tr></thead>
       <tbody>${sheetMaterials}</tbody>
     </table></div>
     <button type="button" class="add-row" data-action="add-material" data-kind="sheet">+ Add sheet material</button>
 
     <h3 class="sub-head">Sheets on hand</h3>
-    <div class="table-scroll"><table class="grid-table">
+    <div class="table-scroll"><table class="grid-table row-table sheet-stock-table">
+      <colgroup><col class="col-move"><col class="col-material"><col class="col-size"><col class="col-measure"><col class="col-measure"><col class="col-qty"><col class="col-note"><col class="col-actions"></colgroup>
       <thead><tr>
         <th class="mid"></th>
         ${sortHeader('materialId', 'Material', sheetSort, '', 'sort-sheets')}
@@ -292,20 +364,25 @@ function materialsPanel(project, uiState, open, sheetSort) {
       <tbody>${sheets}</tbody>
     </table></div>
     <button type="button" class="add-row" data-action="add-sheet"${noSheetMaterials ? ' disabled title="Add a sheet material first"' : ''}>+ Add sheet</button>
+    </section>
 
-    <h3 class="sub-head material-kind-head">Board stock</h3>
-    <div class="table-scroll"><table class="grid-table">
+    <section class="material-stock-group" aria-labelledby="board-stock-heading">
+    <h3 class="sub-head material-kind-head" id="board-stock-heading">Board stock</h3>
+    <div class="table-scroll"><table class="grid-table row-table board-material-table">
+      <colgroup><col class="col-move"><col class="col-name"><col class="col-thickness"><col class="col-measure"><col class="col-note"><col class="col-actions"></colgroup>
       <thead><tr><th class="mid"></th><th>Name</th><th>Thickness</th><th>Width</th><th>Note / tag</th><th></th></tr></thead>
       <tbody>${boardMaterials}</tbody>
     </table></div>
     <button type="button" class="add-row" data-action="add-material" data-kind="board">+ Add board material</button>
 
     <h3 class="sub-head">Boards on hand</h3>
-    <div class="table-scroll"><table class="grid-table">
+    <div class="table-scroll"><table class="grid-table row-table board-stock-table">
+      <colgroup><col class="col-move"><col class="col-material"><col class="col-measure"><col class="col-qty"><col class="col-note"><col class="col-actions"></colgroup>
       <thead><tr><th class="mid"></th><th>Material</th><th>Length (ft)</th><th>On hand</th><th>Note</th><th></th></tr></thead>
       <tbody>${boards}</tbody>
     </table></div>
     <button type="button" class="add-row" data-action="add-board"${noBoardMaterials ? ' disabled title="Add a board material first"' : ''}>+ Add board</button>
+    </section>
   </details>`;
 }
 
@@ -324,7 +401,7 @@ function sortHeader(key, label, sort, extraClass = '', action = 'sort-parts') {
     + ` aria-label="Sort by ${escapeHtml(label)}">${escapeHtml(label)}${arrow}</button></th>`;
 }
 
-function partsPanel(project, sort, open) {
+function partsPanel(project, sort, open, uiState) {
   const declared = new Set(project.materials.map((material) => material.id));
 
   // A part can belong to no group at all: added before the first group existed,
@@ -338,19 +415,38 @@ function partsPanel(project, sort, open) {
       .join('');
   };
 
-  const rows = project.parts.map((part, index) => `<tr>
+  const rows = project.parts.map((part, index) => {
+    const material = project.materials.find((candidate) => candidate.id === part.materialId);
+    const checkbox = material?.kind === 'board' ? '&mdash;' : `<input type="checkbox" name="parts.${index}.grainLocked" data-focus-key="parts.${index}.grainLocked" data-field="parts.${index}.grainLocked"${part.grainLocked ? ' checked' : ''} aria-label="Grain runs along the length" />`;
+    const remove = `<button type="button" class="row-remove" data-action="remove-part" data-part="${index}" data-row-id="${escapeHtml(part.id)}" title="Remove this part" aria-label="Remove this part">&times;</button>`;
+    if (uiState?.get(part.id)?.editing !== true) {
+      const edit = editAttrs(part.id);
+      return `<tr class="row-display" data-row-id="${escapeHtml(part.id)}">
+        ${reorderCell('move-part', index, project.parts.length)}
+        <td ${edit}>${displayValue(part.name, 'Unnamed')}</td>
+        <td class="qty num" ${edit}>${escapeHtml(part.qty)}</td>
+        <td class="num" ${edit}>${escapeHtml(part.widthIn)}</td>
+        <td class="num" ${edit}>${escapeHtml(part.lengthIn)}</td>
+        <td ${edit}>${material ? displayValue(material.name, 'Unnamed') : '<span class="muted">Pick a material</span>'}</td>
+        <td class="mid">${checkbox}</td>
+        <td class="mid">${viewRowActions(part.id, remove)}</td>
+      </tr>`;
+    }
+    return `<tr class="row-edit" data-row-id="${escapeHtml(part.id)}">
     ${reorderCell('move-part', index, project.parts.length)}
     <td>${textInput({ key: `parts.${index}.name`, value: part.name, placeholder: 'Part name' })}</td>
     <td class="qty num"><input type="number" min="1" step="1" name="parts.${index}.qty" data-focus-key="parts.${index}.qty" data-field="parts.${index}.qty" value="${escapeHtml(part.qty)}" /></td>
     <td class="num">${stepperInput({ key: `parts.${index}.widthIn`, value: part.widthIn })}</td>
     <td class="num">${stepperInput({ key: `parts.${index}.lengthIn`, value: part.lengthIn })}</td>
     <td><select name="parts.${index}.materialId" data-focus-key="parts.${index}.materialId" data-field="parts.${index}.materialId">${materialOptions(part.materialId)}</select></td>
-    <td class="mid">${project.materials.find((material) => material.id === part.materialId)?.kind === 'board' ? '&mdash;' : `<input type="checkbox" name="parts.${index}.grainLocked" data-focus-key="parts.${index}.grainLocked" data-field="parts.${index}.grainLocked"${part.grainLocked ? ' checked' : ''} aria-label="Grain runs along the length" />`}</td>
-    <td class="mid"><button type="button" class="row-remove" data-action="remove-part" data-part="${index}" title="Remove this part" aria-label="Remove this part">&times;</button></td>
-  </tr>`).join('');
+    <td class="mid">${checkbox}</td>
+    <td class="mid">${rowActions(part.id, remove)}</td>
+  </tr>`;
+  }).join('');
 
   return `<details class="section" data-panel="parts"${open.parts ? ' open' : ''}><summary><h2>Parts</h2></summary>
-    <div class="table-scroll"><table class="grid-table">
+    <div class="table-scroll"><table class="grid-table row-table parts-table">
+      <colgroup><col class="col-move"><col class="col-name"><col class="col-qty"><col class="col-measure"><col class="col-measure"><col class="col-material"><col class="col-grain"><col class="col-actions"></colgroup>
       <thead><tr>
         <th class="mid"></th>
         ${sortHeader('name', 'Name', sort)}
@@ -380,7 +476,7 @@ function suppliesPanel(project, open, uiState) {
       const link = url
         ? `<a class="supply-domain" href="${escapeHtml(url)}" title="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(domain)}</a>`
         : '&mdash;';
-      const edit = `data-action="edit-supply" data-supply-id="${escapeHtml(supply.id)}"`;
+      const edit = `data-action="edit-row" data-row-id="${escapeHtml(supply.id)}"`;
       return `<div class="supply-grid-row supply-display" role="row">
         ${reorder}
         <div class="mid" role="cell">${checkbox}</div>
@@ -391,7 +487,7 @@ function suppliesPanel(project, open, uiState) {
         <div class="supply-editable" role="cell" ${edit}>${displayPrice(supply.price)}</div>
         <div class="supply-editable" role="cell" ${edit}>${escapeHtml(supply.note) || '&mdash;'}</div>
         <div role="cell">${link}</div>
-        <div role="cell"><span class="supply-actions"><button type="button" class="supply-edit-action" data-action="edit-supply" data-supply-id="${escapeHtml(supply.id)}">Edit</button>${remove}</span></div>
+        <div role="cell">${viewRowActions(supply.id, remove)}</div>
       </div>`;
     }
 
@@ -405,7 +501,7 @@ function suppliesPanel(project, open, uiState) {
       <div role="cell">${textInput({ key: `supplies.${index}.price`, value: supply.price })}</div>
       <div role="cell">${textInput({ key: `supplies.${index}.note`, value: supply.note })}</div>
       <div role="cell">${textInput({ key: `supplies.${index}.url`, value: supply.url, type: 'url' })}</div>
-      <div role="cell"><span class="supply-actions"><button type="button" class="supply-edit-action" data-action="finish-supply-edit" data-supply-id="${escapeHtml(supply.id)}">Done</button>${remove}</span></div>
+      <div role="cell">${rowActions(supply.id, remove)}</div>
     </div>`;
   }).join('');
 
@@ -426,6 +522,6 @@ function suppliesPanel(project, open, uiState) {
  */
 export function renderForms(project, uiState, sort = null, open = { meta: false, materials: true, parts: true, supplies: true }, sheetSort = null) {
   return metaPanel(project, open)
-    + materialsPanel(project, uiState, open, sheetSort) + partsPanel(project, sort, open)
+    + materialsPanel(project, uiState, open, sheetSort) + partsPanel(project, sort, open, uiState)
     + suppliesPanel(project, open, uiState);
 }

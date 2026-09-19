@@ -98,7 +98,7 @@ test('the form renders supplies as one grid with all editable fields', () => {
   }
   assert.match(html, /data-action="remove-supply"/);
   assert.match(html, /data-action="add-supply"/);
-  assert.match(html, /data-action="finish-supply-edit"/);
+  assert.match(html, /data-action="finish-row-edit"/);
   assert.match(html, /data-action="move-supply"/);
   for (const field of ['qty', 'packQty']) {
     const input = html.match(new RegExp(`<input[^>]*data-field="supplies\\.0\\.${field}"[^>]*>`))?.[0];
@@ -113,8 +113,8 @@ test('the normal supply row is a checklist row with a compact domain link', () =
   assert.ok(html.indexOf('type="checkbox"') < html.indexOf('Pocket screws'));
   assert.match(html, />example\.com<\/a>/);
   assert.ok(!html.includes('>https://example.com/screws</a>'));
-  assert.match(html, /data-action="edit-supply"/);
-  assert.match(html, /class="supply-name supply-editable"[^>]+data-action="edit-supply"/);
+  assert.match(html, /data-action="edit-row"/);
+  assert.match(html, /class="supply-name supply-editable"[^>]+data-action="edit-row"/);
   assert.doesNotMatch(html, />Have<\/th>/);
   assert.doesNotMatch(html, />Unit<\/div>/);
 });

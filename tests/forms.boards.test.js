@@ -20,8 +20,14 @@ function boardProject() {
   });
 }
 
+const EDITING = new Map([
+  ['oak', { editing: true }],
+  ['oak-8', { editing: true }],
+  ['rail', { editing: true }],
+]);
+
 test('board stock is entered as boards with a foot-based length', () => {
-  const html = renderForms(boardProject(), new Map());
+  const html = renderForms(boardProject(), EDITING);
   assert.match(html, /<h3 class="sub-head">Boards on hand<\/h3>/);
   assert.match(html, /data-field="materials\.0\.boards\.0\.lengthFt" value="8"/);
   assert.match(html, /data-action="add-board"/);
@@ -29,9 +35,9 @@ test('board stock is entered as boards with a foot-based length', () => {
 });
 
 test('board materials live in their own definition table with width and quarter thickness', () => {
-  const html = renderForms(boardProject(), new Map());
-  assert.match(html, /<h3 class="sub-head material-kind-head">Sheet goods<\/h3>/);
-  assert.match(html, /<h3 class="sub-head material-kind-head">Board stock<\/h3>/);
+  const html = renderForms(boardProject(), EDITING);
+  assert.match(html, /<h3 class="sub-head material-kind-head"[^>]*>Sheet goods<\/h3>/);
+  assert.match(html, /<h3 class="sub-head material-kind-head"[^>]*>Board stock<\/h3>/);
   assert.match(html, /data-action="add-material" data-kind="sheet"/);
   assert.match(html, /data-action="add-material" data-kind="board"/);
   assert.doesNotMatch(html, /data-field="materials\.0\.kind"/);
@@ -80,7 +86,7 @@ test('sheet stock cannot be reassigned to a board material', () => {
     ],
     parts: [],
   });
-  const html = renderForms(project, new Map());
+  const html = renderForms(project, new Map([['ply-1', { editing: true }]]));
   const owner = html.match(/<select name="sheet-material"[^>]*>(.*?)<\/select>/s)?.[1] ?? '';
   assert.match(owner, />Plywood<\/option>/);
   assert.doesNotMatch(owner, />Oak<\/option>/);
@@ -90,7 +96,7 @@ test('actual dimensional-lumber thickness stays custom instead of being relabele
   const project = boardProject();
   project.materials[0].thicknessIn = 1.5;
   project.materials[0].thicknessLabel = '1 1/2 in';
-  const html = renderForms(project, new Map());
+  const html = renderForms(project, new Map([['oak', { editing: true }]]));
   assert.match(html, /option value="custom" selected>Other\.\.\.<\/option>/);
   assert.match(html, /data-field="materials\.0\.thicknessIn" value="1.5"/);
 });

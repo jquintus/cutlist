@@ -8,7 +8,11 @@ import { normalizeProject } from '../src/model.js';
 // preset list and a spare number box side by side. So these tests render the
 // group in custom mode, which is the only state in which the box is on screen
 // and therefore the only state in which how it behaves matters.
-const CUSTOM_THICKNESS = new Map([['m1', { sizeMode: 'custom' }]]);
+const CUSTOM_THICKNESS = new Map([
+  ['m1', { sizeMode: 'custom', editing: true }],
+  ['m1s1', { editing: true }],
+  ['p1', { editing: true }],
+]);
 
 function formsHtml(uiState = CUSTOM_THICKNESS) {
   return renderForms(normalizeProject({
@@ -93,7 +97,7 @@ test('a fractional dimension is written into the box as entered', () => {
 });
 
 test('a preset thickness shows one control, with no spare measurement box beside it', () => {
-  const html = formsHtml(new Map());
+  const html = formsHtml(new Map([['m1', { editing: true }]]));
   assert.ok(!html.includes('data-field="materials.0.thicknessIn"'), 'two thickness inputs are shown at once');
   assert.match(html, /data-field="materials\.0\.thicknessPreset"/);
 });

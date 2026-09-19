@@ -625,6 +625,15 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 
 .sub-head { margin: 16px 0 6px; font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); }
 .material-kind-head { margin-top: 22px; color: var(--ink); }
+.material-stock-group {
+  margin-top: 14px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+}
+.material-stock-group > .material-kind-head { margin-top: 0; }
+.material-stock-group > .sub-head:not(.material-kind-head) { margin-top: 18px; }
 .hint { margin: 6px 0 0; font-size: .8rem; }
 .add-row:disabled { opacity: .45; cursor: default; }
 .add-row:disabled:hover { border-color: var(--line); color: var(--ink-soft); }
@@ -633,6 +642,29 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
    table, so every heading always uses the exact same columns as its rows. */
 .table-scroll { width: 100%; overflow-x: auto; }
 .section .grid-table { display: table; width: 100%; min-width: 100%; table-layout: auto; }
+
+/* An edit row contains intrinsically wide controls; a display row contains
+   short text. Both use the same explicit columns so entering edit mode never
+   makes the whole table jump. Narrow panes scroll the complete table instead
+   of squeezing a measurement control until it is unusable. */
+.section .grid-table.row-table { table-layout: fixed; }
+.section .grid-table.sheet-material-table { min-width: 48rem; }
+.section .grid-table.sheet-stock-table { min-width: 58rem; }
+.section .grid-table.board-material-table { min-width: 51rem; }
+.section .grid-table.board-stock-table { min-width: 42rem; }
+.section .grid-table.parts-table { min-width: 52rem; }
+.row-table .col-move { width: 2rem; }
+.row-table .col-name { width: 11rem; }
+.row-table .col-thickness { width: 15rem; }
+.row-table .col-material { width: 10rem; }
+.row-table .col-size { width: 10rem; }
+.row-table .col-measure { width: 7rem; }
+.row-table .col-qty { width: 5rem; }
+.row-table .col-note { width: 11rem; }
+.row-table .col-grain { width: 4rem; }
+.row-table .col-actions { width: 5.5rem; }
+.row-table input,
+.row-table select { max-width: 100%; }
 
 /* Display and edit mode use the exact same grid template. Unlike table auto
    sizing, content cannot make a row disagree with its headings. */
@@ -663,12 +695,18 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .supply-buy output { font-variant-numeric: tabular-nums; font-weight: 600; }
 .supply-display { min-height: 34px; }
 .supply-name { font-weight: 600; }
-.supply-editable { cursor: text; }
-.supply-editable:hover { background: var(--accent-soft); }
+.supply-editable,
+.grid-table td[data-action="edit-row"] { cursor: text; }
+.supply-editable:hover,
+.grid-table td[data-action="edit-row"]:hover { background: var(--accent-soft); }
 .supply-domain { display: block; overflow: hidden; color: var(--accent); text-overflow: ellipsis; white-space: nowrap; }
-.supply-actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
-.supply-edit-action { padding: 2px 4px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
-.supply-edit-action:hover { text-decoration: underline; }
+.supply-actions,
+.row-actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; white-space: nowrap; }
+.supply-edit-action,
+.row-edit-action { padding: 2px 4px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.supply-edit-action:hover,
+.row-edit-action:hover { text-decoration: underline; }
+.grid-table .row-display { height: 35px; }
 
 /* Selecting a step clears the picture down to that one cut.
  *
