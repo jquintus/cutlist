@@ -332,6 +332,7 @@ textarea { width: 100%; resize: vertical; }
 
 .material-section { margin: 0 0 22px; }
 .material-section > h2 { margin-bottom: 4px; font-size: 1rem; }
+.material-note { margin: 0 0 8px; color: var(--ink-soft); white-space: pre-line; }
 
 .sheet { margin: 0 0 16px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .sheet > h3 { margin-bottom: 8px; font-size: .9rem; }
@@ -344,6 +345,31 @@ textarea { width: 100%; resize: vertical; }
 .sheet-figure { min-width: 0; }
 .sheet-view { display: block; }
 .sheet-view svg, .sheet-svg { display: block; width: 100%; height: auto; }
+.board-view svg, .board-svg { display: block; width: 100%; height: auto; }
+.board-figure { min-width: 8%; }
+.board-part-label { fill: var(--ink); font-weight: 700; }
+.board-cut-label { fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: .2em; }
+.board-cut-line { stroke-dasharray: none; }
+
+.thickness-custom {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) minmax(5.5rem, .7fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.thickness-custom label { display: contents; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 /* Turning the picture.
  *
  * A bare `transform: rotate(90deg)` does not change an element's layout box, so
@@ -598,6 +624,16 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .sheet-step.is-off { opacity: .35; }
 
 .sub-head { margin: 16px 0 6px; font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); }
+.material-kind-head { margin-top: 22px; color: var(--ink); }
+.material-stock-group {
+  margin-top: 14px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+}
+.material-stock-group > .material-kind-head { margin-top: 0; }
+.material-stock-group > .sub-head:not(.material-kind-head) { margin-top: 18px; }
 .hint { margin: 6px 0 0; font-size: .8rem; }
 .add-row:disabled { opacity: .45; cursor: default; }
 .add-row:disabled:hover { border-color: var(--line); color: var(--ink-soft); }
@@ -606,6 +642,29 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
    table, so every heading always uses the exact same columns as its rows. */
 .table-scroll { width: 100%; overflow-x: auto; }
 .section .grid-table { display: table; width: 100%; min-width: 100%; table-layout: auto; }
+
+/* An edit row contains intrinsically wide controls; a display row contains
+   short text. Both use the same explicit columns so entering edit mode never
+   makes the whole table jump. Narrow panes scroll the complete table instead
+   of squeezing a measurement control until it is unusable. */
+.section .grid-table.row-table { table-layout: fixed; }
+.section .grid-table.sheet-material-table { min-width: 48rem; }
+.section .grid-table.sheet-stock-table { min-width: 58rem; }
+.section .grid-table.board-material-table { min-width: 51rem; }
+.section .grid-table.board-stock-table { min-width: 42rem; }
+.section .grid-table.parts-table { min-width: 52rem; }
+.row-table .col-move { width: 2rem; }
+.row-table .col-name { width: 11rem; }
+.row-table .col-thickness { width: 15rem; }
+.row-table .col-material { width: 10rem; }
+.row-table .col-size { width: 10rem; }
+.row-table .col-measure { width: 7rem; }
+.row-table .col-qty { width: 5rem; }
+.row-table .col-note { width: 11rem; }
+.row-table .col-grain { width: 4rem; }
+.row-table .col-actions { width: 5.5rem; }
+.row-table input,
+.row-table select { max-width: 100%; }
 
 /* Display and edit mode use the exact same grid template. Unlike table auto
    sizing, content cannot make a row disagree with its headings. */
@@ -636,12 +695,18 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .supply-buy output { font-variant-numeric: tabular-nums; font-weight: 600; }
 .supply-display { min-height: 34px; }
 .supply-name { font-weight: 600; }
-.supply-editable { cursor: text; }
-.supply-editable:hover { background: var(--accent-soft); }
+.supply-editable,
+.grid-table td[data-action="edit-row"] { cursor: text; }
+.supply-editable:hover,
+.grid-table td[data-action="edit-row"]:hover { background: var(--accent-soft); }
 .supply-domain { display: block; overflow: hidden; color: var(--accent); text-overflow: ellipsis; white-space: nowrap; }
-.supply-actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
-.supply-edit-action { padding: 2px 4px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
-.supply-edit-action:hover { text-decoration: underline; }
+.supply-actions,
+.row-actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; white-space: nowrap; }
+.supply-edit-action,
+.row-edit-action { padding: 2px 4px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.supply-edit-action:hover,
+.row-edit-action:hover { text-decoration: underline; }
+.grid-table .row-display { height: 35px; }
 
 /* Selecting a step clears the picture down to that one cut.
  *

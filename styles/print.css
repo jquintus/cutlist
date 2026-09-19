@@ -36,13 +36,14 @@
   .sheet { break-inside: avoid; page-break-inside: avoid; margin: 0 0 10pt; padding: 6pt 0 0; border: 0; border-top: 1pt solid #000; border-radius: 0; }
   .material-section { break-inside: auto; margin: 0 0 12pt; }
   .material-section > h2 { break-after: avoid; page-break-after: avoid; font-size: 12pt; }
+  .material-note { break-after: avoid; page-break-after: avoid; }
   .sheet > h3 { break-after: avoid; page-break-after: avoid; font-size: 10.5pt; }
   .sheet-todo, .cuts, .parts { break-inside: avoid; page-break-inside: avoid; }
 
   /* Diagram beside its cuts on paper too: a sheet then fits one page rather
      than running the picture down one page and the steps onto the next. */
   .sheet-grid { display: grid; grid-template-columns: 1fr 2.1in; gap: 10pt; align-items: start; }
-  .sheet-view svg, .sheet-svg { width: 100%; height: auto; max-height: 4.2in; }
+  .sheet-view svg, .sheet-svg, .board-view svg, .board-svg { width: 100%; height: auto; max-height: 4.2in; }
 
   /* A turned picture keeps the space it reserved on screen. */
   .sheet-view.rotated { aspect-ratio: var(--turned-ratio); }
@@ -91,6 +92,10 @@
   .cut-line.is-active { stroke: #000 !important; stroke-width: inherit !important; }
   .cut-step-no, .cut-step-no.is-active { fill: #000 !important; stroke: #fff !important; }
   .scrap-label { fill: #333 !important; }
+  .board-edge, .board-part { fill: #fff !important; stroke: #000 !important; }
+  .board-part-label, .board-cut-label { fill: #000 !important; stroke: #fff !important; }
+  .board-cut-line { stroke: #000 !important; stroke-dasharray: none !important; }
+  .board-usable { fill: none !important; stroke: #666 !important; }
 
   /* Some browsers print backgrounds and some do not; nothing here should
      depend on which, so no background is allowed to carry meaning. */

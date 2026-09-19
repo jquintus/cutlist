@@ -18,12 +18,54 @@ test('newProject carries the schema version and the documented defaults', () => 
 
 test('normalizeProject fills the defaults on an empty object', () => {
   const project = normalizeProject({});
-  assert.equal(project.schemaVersion, 1);
+  assert.equal(project.schemaVersion, SCHEMA_VERSION);
   assert.equal(project.params.kerfIn, 0.125);
   assert.equal(project.params.edgeTrimIn, 0);
   assert.deepEqual(project.unplanned, []);
   assert.deepEqual(project.materials, []);
   assert.deepEqual(project.parts, []);
+});
+
+test('normalizeProject migrates sheet materials to the v2 canonical shape', () => {
+  const project = normalizeProject({
+    schemaVersion: 1,
+    materials: [{ id: 'm1', name: 'Ply', note: 'Cabinet grade' }],
+  });
+  assert.equal(project.schemaVersion, 2);
+  assert.deepEqual(project.materials[0], {
+    id: 'm1',
+    name: 'Ply',
+    kind: 'sheet',
+    thicknessIn: 0,
+    thicknessLabel: '',
+    widthIn: 0,
+    note: 'Cabinet grade',
+    color: '#2f6f9f',
+    sheets: [],
+    boards: [],
+  });
+});
+
+test('normalizeProject preserves board material and stock fields', () => {
+  const project = normalizeProject({
+    materials: [{
+      id: 'oak',
+      name: 'White oak',
+      kind: 'board',
+      thicknessIn: '1',
+      thicknessLabel: '4/4',
+      widthIn: '7',
+      note: 'Rough sawn',
+      boards: [{ label: 'Rack A', lengthIn: '96', qty: '2', note: 'Clear' }],
+    }],
+  });
+  const material = project.materials[0];
+  assert.equal(material.kind, 'board');
+  assert.equal(material.widthIn, 7);
+  assert.equal(material.note, 'Rough sawn');
+  assert.deepEqual(material.boards, [{
+    id: 'oakb1', label: 'Rack A', lengthIn: 96, qty: 2, note: 'Clear',
+  }]);
 });
 
 test('normalizeProject does not mutate its argument', () => {

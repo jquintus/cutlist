@@ -5,6 +5,7 @@
 // same numbers by construction rather than by agreement.
 
 import { packMaterial } from './packer/index.js';
+import { packBoardMaterial } from './packer/boards.js';
 
 /**
  * Plan a whole project.
@@ -24,7 +25,8 @@ export function planProject(project) {
   }
 
   const materials = project.materials.map((material, materialIndex) => {
-    const result = packMaterial({
+    const isBoard = material.kind === 'board';
+    const result = (isBoard ? packBoardMaterial : packMaterial)({
       material,
       parts: project.parts,
       params: project.params,
@@ -32,8 +34,9 @@ export function planProject(project) {
     });
     const { buySpec } = result;
 
-    return {
+    const common = {
       materialId: material.id,
+      kind: isBoard ? 'board' : 'sheet',
       // The repack control sits beside the diagram, and the action that swaps a
       // sheet's width and length addresses the group by position, so the plan
       // has to carry that position back out.
@@ -41,17 +44,37 @@ export function planProject(project) {
       name: material.name,
       thicknessIn: material.thicknessIn,
       thicknessLabel: material.thicknessLabel,
+      note: material.note,
       color: material.color,
+      unplaceable: result.unplaceable,
+      strategyUsed: result.strategyUsed,
+      // Carried so the invariant validators can cross check grain locks.
+      parts: project.parts.filter((part) => part.materialId === material.id),
+    };
+
+    if (isBoard) {
+      return {
+        ...common,
+        widthIn: material.widthIn,
+        sheets: [],
+        boards: result.boards,
+        onHandBoardCount: result.onHandBoardCount,
+        extraBoardsNeeded: result.boards.filter((board) => board.source === 'to-buy').length,
+        buySpec: buySpec === null
+          ? null
+          : { widthIn: material.widthIn, lengthIn: buySpec.lengthIn, label: buySpec.label },
+      };
+    }
+
+    return {
+      ...common,
       sheets: result.sheets,
+      boards: [],
       onHandSheetCount: result.onHandSheetCount,
       // A shopping list, not an error. These sheets are packed and drawn
       // exactly like the ones already in the shop; only `source` differs.
       extraSheetsNeeded: result.sheets.filter((sheet) => sheet.source === 'to-buy').length,
       buySpec: { widthIn: buySpec.widthIn, lengthIn: buySpec.lengthIn, label: buySpec.label },
-      unplaceable: result.unplaceable,
-      strategyUsed: result.strategyUsed,
-      // Carried so the invariant validators can cross check grain locks.
-      parts: project.parts.filter((part) => part.materialId === material.id),
     };
   });
 
@@ -66,17 +89,22 @@ export function planProject(project) {
   // entry per group that ran short, followed by the project's non-cut supplies.
   // That makes it a single list for the whole project rather than a banner per
   // group or a separate hardware list.
-  const materialShoppingList = materials
-    .filter((materialPlan) => materialPlan.extraSheetsNeeded > 0)
-    .map((materialPlan) => ({
+  const materialShoppingList = materials.flatMap((materialPlan) => {
+    const qty = materialPlan.kind === 'board'
+      ? materialPlan.extraBoardsNeeded
+      : materialPlan.extraSheetsNeeded;
+    if (!(qty > 0) || materialPlan.buySpec === null) return [];
+    return [{
+      kind: materialPlan.kind,
       materialId: materialPlan.materialId,
       name: materialPlan.name,
       thicknessLabel: materialPlan.thicknessLabel,
-      qty: materialPlan.extraSheetsNeeded,
+      qty,
       widthIn: materialPlan.buySpec.widthIn,
       lengthIn: materialPlan.buySpec.lengthIn,
       label: materialPlan.buySpec.label,
-    }));
+    }];
+  });
 
   const supplyShoppingList = project.supplies
     .filter((supply) => !supply.onHand)
@@ -99,7 +127,13 @@ export function planProject(project) {
     // picture: two sheets at different scales made comparing them a trap.
     widestSheetIn: Math.max(
       1,
-      ...materials.flatMap((materialPlan) => materialPlan.sheets.map((sheet) => sheet.widthIn)),
+      ...materials.flatMap((materialPlan) => (materialPlan.sheets ?? []).map((sheet) => sheet.widthIn)),
+    ),
+    // Board bars use a separate longitudinal scale. Comparing a board's length
+    // with a sheet's width would make both diagrams less useful.
+    widestBoardIn: Math.max(
+      1,
+      ...materials.flatMap((materialPlan) => (materialPlan.boards ?? []).map((board) => board.lengthIn)),
     ),
     materials,
     shoppingList,

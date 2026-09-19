@@ -47,6 +47,14 @@ test('schemaVersionSupported names a newer version distinctly', () => {
   assert.match(missing.message, /no schema version/);
 });
 
+test('schema 1 projects migrate to schema 2 sheet materials', () => {
+  const result = validateProject({ ...goodProject(), schemaVersion: 1 });
+  assert.equal(result.ok, true);
+  assert.equal(result.project.schemaVersion, 2);
+  assert.equal(result.project.materials[0].kind, 'sheet');
+  assert.deepEqual(result.project.materials[0].boards, []);
+});
+
 test('materialsWellFormed rejects a sheet with no real size', () => {
   const result = validateProject({
     ...goodProject(),
@@ -63,6 +71,74 @@ test('materialsWellFormed accepts a qty zero sheet, which is how a group says wh
     materials: [{ id: 'm1', name: 'Half', sheets: [{ widthIn: 48, lengthIn: 96, qty: 0 }] }],
   });
   assert.equal(result.ok, true);
+});
+
+test('materialsWellFormed accepts board stock and a qty zero buy spec', () => {
+  const result = validateProject({
+    ...goodProject(),
+    materials: [{
+      id: 'm1',
+      name: 'White oak',
+      kind: 'board',
+      thicknessIn: 1,
+      thicknessLabel: '4/4',
+      widthIn: 7,
+      boards: [{ id: 'm1b1', label: '8 ft', lengthIn: 96, qty: 0, note: '' }],
+    }],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.project.materials[0].boards[0].qty, 0);
+});
+
+test('materialsWellFormed rejects an unknown material kind', () => {
+  const result = validateProject({
+    ...goodProject(),
+    materials: [{ ...goodProject().materials[0], kind: 'tube' }],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.field, 'materials');
+  assert.match(result.message, /unknown kind/);
+});
+
+test('materialsWellFormed rejects a board group without a positive width', () => {
+  const result = validateProject({
+    ...goodProject(),
+    materials: [{ id: 'm1', name: 'Oak', kind: 'board', widthIn: 0, boards: [] }],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.field, 'materials');
+  assert.match(result.message, /width/);
+});
+
+test('materialsWellFormed rejects malformed board stock', () => {
+  for (const boards of [
+    'not a list',
+    [null],
+    [{ lengthIn: 0, qty: 1 }],
+    [{ lengthIn: 96, qty: -1 }],
+  ]) {
+    const result = validateProject({
+      ...goodProject(),
+      materials: [{ id: 'm1', name: 'Oak', kind: 'board', widthIn: 4, boards }],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.field, 'materials');
+  }
+});
+
+test('a material cannot hide stock belonging to the other kind', () => {
+  const boardWithSheet = goodProject();
+  boardWithSheet.materials[0] = {
+    ...boardWithSheet.materials[0],
+    kind: 'board',
+    widthIn: 3.5,
+    boards: [],
+  };
+  assert.equal(validateProject(boardWithSheet).ok, false);
+
+  const sheetWithBoard = goodProject();
+  sheetWithBoard.materials[0].boards = [{ id: 'b1', lengthIn: 96, qty: 1 }];
+  assert.equal(validateProject(sheetWithBoard).ok, false);
 });
 
 test('partsWellFormed rejects a part pointing at an undeclared material group', () => {

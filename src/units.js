@@ -48,6 +48,20 @@ export const THICKNESS_PRESETS = Object.freeze([
   ...[3, 4, 6, 9, 12, 15, 18, 25].map(metricThickness),
 ]);
 
+function quarterThickness(quarters) {
+  return {
+    id: `quarter-${quarters}-4`,
+    label: `${quarters}/4`,
+    inches: quarters / 4,
+    system: 'imperial',
+  };
+}
+
+/** Common rough-sawn board thicknesses, expressed in the quarter notation lumber is sold under. */
+export const BOARD_THICKNESS_PRESETS = Object.freeze(
+  [4, 5, 6, 8].map(quarterThickness),
+);
+
 /** Stock sheet sizes offered in the sheet picker. Custom sizes bypass this list. */
 export const SHEET_PRESETS = Object.freeze([
   { id: '48x96', label: '48 x 96', widthIn: 48, lengthIn: 96 },

@@ -8,7 +8,10 @@
 import { escapeHtml } from './escape.js';
 import { formatLength } from '../units.js';
 import { sheetSvg } from './renderDiagram.js';
-import { sheetCutListHtml, sheetKey, sourceLabel } from './renderTable.js';
+import { boardSvg } from './renderBoardDiagram.js';
+import {
+  boardCutListHtml, boardKey, boardSourceLabel, sheetCutListHtml, sheetKey, sourceLabel,
+} from './renderTable.js';
 
 function warningsSection(plan) {
   if (plan.warnings.length === 0) return '';
@@ -19,13 +22,6 @@ function warningsSection(plan) {
 function notesSection(plan) {
   if (!plan.notes) return '';
   return `<section class="notes-banner"><strong>Project notes</strong>\n${escapeHtml(plan.notes)}</section>`;
-}
-
-function buyBanner(materialPlan) {
-  if (materialPlan.extraSheetsNeeded === 0) return '';
-  const { widthIn, lengthIn } = materialPlan.buySpec;
-  const sheetWord = materialPlan.extraSheetsNeeded === 1 ? 'sheet' : 'sheets';
-  return `<p class="banner-buy">Shopping list: buy ${materialPlan.extraSheetsNeeded} more ${escapeHtml(widthIn)} x ${escapeHtml(lengthIn)} ${sheetWord} of ${escapeHtml(materialPlan.name)}.</p>`;
 }
 
 function purchaseUrl(value) {
@@ -58,6 +54,12 @@ function shoppingListSection(plan, system, ticked = new Set(), standalone = fals
         ? `<a href="${escapeHtml(url)}">${escapeHtml(supplyName)}</a>`
         : escapeHtml(supplyName);
       text = `${escapeHtml(entry.buyQty)} &times; ${name} (${details.join('; ')})`;
+    } else if (entry.kind === 'board') {
+      const thickness = entry.thicknessLabel ? ` (${escapeHtml(entry.thicknessLabel)})` : '';
+      const boardWord = entry.qty === 1 ? 'board' : 'boards';
+      text = `${escapeHtml(entry.qty)} ${boardWord} of ${escapeHtml(entry.name)}${thickness}`
+        + `, ${escapeHtml(formatLength(entry.widthIn, system))} wide`
+        + ` x ${escapeHtml(formatLength(entry.lengthIn, system))} long`;
     } else {
       const thickness = entry.thicknessLabel ? ` (${escapeHtml(entry.thicknessLabel)})` : '';
       const sheetWord = entry.qty === 1 ? 'sheet' : 'sheets';
@@ -93,7 +95,7 @@ function shoppingListSection(plan, system, ticked = new Set(), standalone = fals
 function stepLink(entry, view, label) {
   if (entry === undefined) return `<span class="sheet-step is-off">${escapeHtml(label)}</span>`;
   const href = `${view.baseHash || '#'}&sheet=${encodeURIComponent(entry.key)}`;
-  return `<a class="sheet-step" href="${escapeHtml(href)}" title="${escapeHtml(entry.sheetPlan.label)}">${escapeHtml(label)}</a>`;
+  return `<a class="sheet-step" href="${escapeHtml(href)}" title="${escapeHtml(entry.stockPlan.label)}">${escapeHtml(label)}</a>`;
 }
 
 /**
@@ -113,11 +115,17 @@ function stepLink(entry, view, label) {
  * clamped, which quietly broke the one scale every diagram is supposed to share.
  */
 function widestAcross(plan, view) {
-  const edges = plan.materials.flatMap((materialPlan) => materialPlan.sheets
+  const edges = plan.materials.flatMap((materialPlan) => (materialPlan.sheets ?? [])
     .map((sheetPlan, index) => (view.rotated?.[sheetKey(materialPlan, sheetPlan, index)] === true
       ? sheetPlan.lengthIn
       : sheetPlan.widthIn)));
   return Math.max(1, ...edges);
+}
+
+/** Boards share a length scale with boards, never the sheets' two-dimensional scale. */
+function longestBoard(plan) {
+  return Math.max(1, ...plan.materials.flatMap((materialPlan) => (materialPlan.boards ?? [])
+    .map((boardPlan) => boardPlan.lengthIn)));
 }
 
 /**
@@ -166,18 +174,40 @@ function sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widest
   </article>`;
 }
 
-function materialSection(plan, materialPlan, view) {
-  const onHand = `<p class="muted">${escapeHtml(materialPlan.onHandSheetCount)} sheet(s) on hand, ${escapeHtml(materialPlan.sheets.length)} laid out.</p>`;
+function boardArticle(plan, materialPlan, boardPlan, index, view, system, longest) {
+  const key = boardKey(materialPlan, boardPlan, index);
+  const width = Math.max(8, Math.min(100, (boardPlan.lengthIn / longest) * 100)).toFixed(2);
+  return `<article class="sheet board">
+    <h3><a class="sheet-link" data-sheet-link="${escapeHtml(key)}" href="#"
+      title="Open this board on its own, for the phone at the saw"
+      >${escapeHtml(boardPlan.label)}</a> <span class="muted">(${boardSourceLabel(boardPlan.source)})</span></h3>
+    <div class="sheet-grid board-grid">
+      <div class="sheet-figure board-figure" style="width:${width}%">
+        <div class="sheet-view board-view">${boardSvg(boardPlan, materialPlan, system, index)}</div>
+      </div>
+      <div class="sheet-steps">${boardCutListHtml(boardPlan, materialPlan, system, index, view.ticked ?? new Set())}</div>
+    </div>
+  </article>`;
+}
 
+function materialSection(plan, materialPlan, view) {
   const system = plan.displaySystem ?? 'imperial';
-  const sheets = materialPlan.sheets
-    .map((sheetPlan, index) => sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widestAcross(plan, view)))
-    .join('');
+  const isBoard = materialPlan.kind === 'board';
+  const plans = isBoard ? (materialPlan.boards ?? []) : (materialPlan.sheets ?? []);
+  const onHandCount = isBoard ? (materialPlan.onHandBoardCount ?? 0) : (materialPlan.onHandSheetCount ?? 0);
+  const stockWord = isBoard ? 'board(s)' : 'sheet(s)';
+  const onHand = `<p class="muted">${escapeHtml(onHandCount)} ${stockWord} on hand, ${escapeHtml(plans.length)} laid out.</p>`;
+  const articles = isBoard
+    ? plans.map((boardPlan, index) => boardArticle(plan, materialPlan, boardPlan, index, view, system, longestBoard(plan))).join('')
+    : plans.map((sheetPlan, index) => sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widestAcross(plan, view))).join('');
+  const note = materialPlan.note
+    ? `<p class="material-note">${escapeHtml(materialPlan.note)}</p>`
+    : '';
 
   return `<section class="material-section">
     <h2>${escapeHtml(materialPlan.name)}${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>
-    ${buyBanner(materialPlan)}${onHand}
-    <div class="sheets">${sheets}</div>
+    ${note}${onHand}
+    <div class="sheets">${articles}</div>
   </section>`;
 }
 
@@ -207,36 +237,49 @@ export function renderResults(plan, view = {}) {
     // Every sheet in the plan, in the order they are laid out, so the focused
     // view can step to the one before and the one after. Flattened once rather
     // than searched twice: the position is what Prev and Next are built from.
-    const all = plan.materials.flatMap((materialPlan) => materialPlan.sheets
-      .map((sheetPlan, index) => ({ materialPlan, sheetPlan, index, key: sheetKey(materialPlan, sheetPlan, index) })));
+    const all = plan.materials.flatMap((materialPlan) => materialPlan.kind === 'board'
+      ? (materialPlan.boards ?? []).map((stockPlan, index) => ({
+        materialPlan, stockPlan, index, key: boardKey(materialPlan, stockPlan, index), kind: 'board',
+      }))
+      : (materialPlan.sheets ?? []).map((stockPlan, index) => ({
+        materialPlan, stockPlan, index, key: sheetKey(materialPlan, stockPlan, index), kind: 'sheet',
+      })));
     const at = all.findIndex((entry) => entry.key === view.focusSheet);
-    const back = `<a href="${escapeHtml(view.baseHash || '#')}">&larr; All sheets</a>`;
+    const hasBoards = all.some((entry) => entry.kind === 'board');
+    const back = `<a href="${escapeHtml(view.baseHash || '#')}">&larr; ${hasBoards ? 'All stock' : 'All sheets'}</a>`;
 
     if (at === -1) {
       return `<p class="focus-back no-print">${back}</p>`
-        + '<p class="muted">That sheet is not in this project any more.</p>';
+        + '<p class="muted">That stock item is not in this project any more.</p>';
     }
 
-    const { materialPlan, sheetPlan, index } = all[at];
+    const { materialPlan, stockPlan, index, kind } = all[at];
+    const materialNote = materialPlan.note
+      ? `<p class="material-note">${escapeHtml(materialPlan.note)}</p>`
+      : '';
     return `<nav class="sheet-nav no-print">${back}`
       + `<span class="sheet-count">${at + 1} of ${all.length}</span>`
       + `<span class="sheet-steps-nav">${stepLink(all[at - 1], view, 'Prev')}${stepLink(all[at + 1], view, 'Next')}</span>`
       + '</nav>'
       + `<section class="material-section"><h2>${escapeHtml(materialPlan.name)}`
-      + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>`
-      + sheetArticle(plan, materialPlan, sheetPlan, index, view, system, widestAcross(plan, view))
+      + `${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>${materialNote}`
+      + (kind === 'board'
+        ? boardArticle(plan, materialPlan, stockPlan, index, view, system, longestBoard(plan))
+        : sheetArticle(plan, materialPlan, stockPlan, index, view, system, widestAcross(plan, view)))
       + '</section>';
   }
 
-  const anySheets = plan.materials.some((materialPlan) => materialPlan.sheets.length > 0);
-  if (!anySheets) {
+  const anyStock = plan.materials.some((materialPlan) => (materialPlan.sheets ?? []).length > 0
+    || (materialPlan.boards ?? []).length > 0);
+  if (!anyStock) {
     return notesSection(plan) + warningsSection(plan)
       + shoppingListSection(plan, system, view.ticked ?? new Set())
       + '<p class="muted">Add a material group and some parts to see a layout.</p>';
   }
 
-  const settings = `<p class="muted">Kerf ${escapeHtml(formatLength(plan.params.kerfIn, system))},`
-    + ` edge trim ${escapeHtml(formatLength(plan.params.edgeTrimIn, system))}.</p>`;
+  const hasSheets = plan.materials.some((materialPlan) => (materialPlan.sheets ?? []).length > 0);
+  const settings = `<p class="muted">Kerf ${escapeHtml(formatLength(plan.params.kerfIn, system))}`
+    + `${hasSheets ? `, sheet edge trim ${escapeHtml(formatLength(plan.params.edgeTrimIn, system))}` : ''}.</p>`;
   const materials = plan.materials.map((materialPlan) => materialSection(plan, materialPlan, view)).join('');
 
   return notesSection(plan) + warningsSection(plan) + shoppingListSection(plan, system, view.ticked ?? new Set())

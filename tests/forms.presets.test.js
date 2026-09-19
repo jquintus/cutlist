@@ -25,6 +25,15 @@ function project() {
   });
 }
 
+function editing(entries = []) {
+  return new Map([
+    ['m1', { editing: true }],
+    ['m1s1', { editing: true }],
+    ['p1', { editing: true }],
+    ...entries,
+  ]);
+}
+
 /** The option tags of the one select whose data-field is this path. */
 function optionsOf(html, fieldPath) {
   const select = html.match(new RegExp(`<select[^>]*data-field="${fieldPath.replace(/\./g, '\\.')}"[\\s\\S]*?</select>`));
@@ -38,17 +47,17 @@ function selectedOf(html, fieldPath) {
 }
 
 test('custom stays custom even when the dimensions still match a preset', () => {
-  const html = renderForms(project(), new Map([['m1s1', { sizeMode: 'custom' }]]));
+  const html = renderForms(project(), editing([['m1s1', { sizeMode: 'custom', editing: true }]]));
   assert.equal(selectedOf(html, 'materials.0.sheets.0.preset').value, 'custom');
 });
 
 test('with no stored mode the control falls back to what the numbers imply', () => {
-  const html = renderForms(project(), new Map());
+  const html = renderForms(project(), editing());
   assert.equal(selectedOf(html, 'materials.0.sheets.0.preset').value, '48x96');
 });
 
 test('choosing a preset again selects that preset', () => {
-  const html = renderForms(project(), new Map([['m1s1', { sizeMode: 'preset' }]]));
+  const html = renderForms(project(), editing([['m1s1', { sizeMode: 'preset', editing: true }]]));
   assert.equal(selectedOf(html, 'materials.0.sheets.0.preset').value, '48x96');
 });
 
@@ -64,23 +73,26 @@ test('a mode is keyed to its own sheet and does not touch a sibling', () => {
     }],
     parts: [],
   });
-  const html = renderForms(twoSheets, new Map([['m1sX', { sizeMode: 'custom' }]]));
+  const html = renderForms(twoSheets, new Map([
+    ['m1s1', { editing: true }],
+    ['m1sX', { sizeMode: 'custom', editing: true }],
+  ]));
   assert.equal(selectedOf(html, 'materials.0.sheets.0.preset').value, '48x96');
   assert.equal(selectedOf(html, 'materials.0.sheets.1.preset').value, 'custom');
 });
 
 test('the thickness control is one control: Other reveals the measurement box', () => {
-  const preset = renderForms(project(), new Map());
+  const preset = renderForms(project(), editing());
   assert.equal(selectedOf(preset, 'materials.0.thicknessPreset').label, '3/4 in');
   assert.ok(!preset.includes('data-field="materials.0.thicknessIn"'));
 
-  const custom = renderForms(project(), new Map([['m1', { sizeMode: 'custom' }]]));
+  const custom = renderForms(project(), editing([['m1', { sizeMode: 'custom', editing: true }]]));
   assert.equal(selectedOf(custom, 'materials.0.thicknessPreset').value, 'custom');
   assert.ok(custom.includes('data-field="materials.0.thicknessIn"'));
 });
 
 test('sheets are their own table, with the material chosen per row', () => {
-  const html = renderForms(project(), new Map());
+  const html = renderForms(project(), editing());
   // Stock is one flat list. A sheet says which material it is through the same
   // kind of dropdown a part uses, so a typed name can never split one pile of
   // plywood into two the packer treats as unrelated.
@@ -112,13 +124,13 @@ test('a part in no material group says so instead of showing the first group', (
     ...project(),
     parts: [{ id: 'p1', name: 'Panel', qty: 1, widthIn: 12, lengthIn: 12, materialId: '' }],
   });
-  const options = optionsOf(renderForms(orphaned), 'parts.0.materialId');
+  const options = optionsOf(renderForms(orphaned, editing()), 'parts.0.materialId');
   assert.deepEqual(options[0], { value: '', selected: true, label: 'Pick a material' });
   assert.ok(options.some((entry) => entry.value === 'm1' && !entry.selected), 'the real group is still pickable');
 });
 
 test('a part already in a group is offered only the real groups', () => {
-  const options = optionsOf(renderForms(project()), 'parts.0.materialId');
+  const options = optionsOf(renderForms(project(), editing()), 'parts.0.materialId');
   assert.deepEqual(options.map((entry) => entry.value), ['m1']);
   assert.equal(options[0].selected, true);
 });

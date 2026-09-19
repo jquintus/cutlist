@@ -130,6 +130,7 @@ test('the shopping list names every group that ran short, once each', () => {
   });
   const plan = planProject(project);
   assert.deepEqual(plan.shoppingList, [{
+    kind: 'sheet',
     materialId: 'm1',
     name: 'Three quarter ply',
     thicknessLabel: '3/4 in',

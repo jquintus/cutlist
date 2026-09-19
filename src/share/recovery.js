@@ -14,8 +14,9 @@ export function saveRecovery(storage, project) {
 
 /**
  * Recovery preserves an in-progress form, so it deliberately accepts blanks
- * that a finished import/share link rejects. It still requires this schema and
- * normalizes every field before anything reaches live state.
+ * that a finished import/share link rejects. Schema 1 is the sheet-only shape
+ * immediately before board stock; normalization migrates it without losing an
+ * in-progress tab during the rollout.
  */
 export function loadRecovery(storage) {
   let text;
@@ -35,7 +36,7 @@ export function loadRecovery(storage) {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, error: 'The recovery copy is not a cutlist project.' };
   }
-  if (Number(parsed.schemaVersion) !== SCHEMA_VERSION) {
+  if (![1, SCHEMA_VERSION].includes(Number(parsed.schemaVersion))) {
     return { ok: false, error: 'The recovery copy uses an unsupported schema.' };
   }
   return { ok: true, project: normalizeProject(parsed) };

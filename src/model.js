@@ -1,7 +1,7 @@
 // The canonical project shape. Everything downstream computes over this and
 // nothing else re-parses raw user input.
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DEFAULT_KERF_IN = 0.125;
 export const DEFAULT_EDGE_TRIM_IN = 0;
@@ -72,8 +72,11 @@ export function normalizeProject(raw) {
     return {
       id: materialId,
       name: str(material.name, `Material ${materialIndex + 1}`),
+      kind: material.kind === 'board' ? 'board' : 'sheet',
       thicknessIn: num(material.thicknessIn, 0),
       thicknessLabel: str(material.thicknessLabel),
+      widthIn: num(material.widthIn, 0),
+      note: str(material.note),
       color: str(material.color) || MATERIAL_COLORS[materialIndex % MATERIAL_COLORS.length],
       sheets: arr(material.sheets).map((rawSheet, sheetIndex) => {
         const sheet = rawSheet && typeof rawSheet === 'object' ? rawSheet : {};
@@ -84,6 +87,16 @@ export function normalizeProject(raw) {
           lengthIn: num(sheet.lengthIn, 0),
           qty: intAtLeast(sheet.qty, 0, 0),
           note: str(sheet.note),
+        };
+      }),
+      boards: arr(material.boards).map((rawBoard, boardIndex) => {
+        const board = rawBoard && typeof rawBoard === 'object' ? rawBoard : {};
+        return {
+          id: str(board.id) || `${materialId}b${boardIndex + 1}`,
+          label: str(board.label),
+          lengthIn: num(board.lengthIn, 0),
+          qty: intAtLeast(board.qty, 0, 0),
+          note: str(board.note),
         };
       }),
     };
@@ -139,7 +152,11 @@ export function normalizeProject(raw) {
   });
 
   return {
-    schemaVersion: num(source.schemaVersion, SCHEMA_VERSION),
+    // normalizeProject returns the canonical in-memory shape. Reading an old
+    // project is therefore also its migration: the next save writes v2, while
+    // an older build sees that newer version and refuses it instead of
+    // silently dropping board stock.
+    schemaVersion: SCHEMA_VERSION,
     name: str(source.name),
     date: str(source.date),
     notes: str(source.notes),
