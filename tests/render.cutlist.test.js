@@ -13,7 +13,7 @@ import { normalizeProject } from '../src/model.js';
 import { renderResults } from '../src/ui/renderResults.js';
 import { cutListRows, cutListHtml, sheetKey } from '../src/ui/renderTable.js';
 
-const SEEDS = ['omnisled-full-size.json', 'omnisled-mini.json', 'omnisled-both.json'];
+const SEEDS = ['demo-omnisled-full-size.json', 'demo-omnisled-mini.json', 'omnisled-full-and-mini.json'];
 
 async function seedPlan(file) {
   const text = await readFile(new URL(`../projects/${file}`, import.meta.url), 'utf8');
@@ -45,7 +45,7 @@ test('no internal piece identifier and no raw coordinate reaches the page', asyn
 });
 
 test('every part gets one checkbox row, in the order the diagram draws it', async () => {
-  const plan = await seedPlan('omnisled-both.json');
+  const plan = await seedPlan('omnisled-full-and-mini.json');
   const html = renderResults(plan);
 
   for (const materialPlan of plan.materials) {
@@ -65,7 +65,7 @@ test('every part gets one checkbox row, in the order the diagram draws it', asyn
 });
 
 test('a part row carries its name and one size, and nothing else', async () => {
-  const plan = await seedPlan('omnisled-both.json');
+  const plan = await seedPlan('omnisled-full-and-mini.json');
   const html = renderResults(plan);
   const placement = plan.materials
     .flatMap((material) => material.sheets)
@@ -81,7 +81,7 @@ test('a part row carries its name and one size, and nothing else', async () => {
 });
 
 test('each sheet states its leftovers exactly once', async () => {
-  const plan = await seedPlan('omnisled-both.json');
+  const plan = await seedPlan('omnisled-full-and-mini.json');
   const html = renderResults(plan);
   const sheetCount = plan.materials.reduce((sum, material) => sum + material.sheets.length, 0);
   const leftovers = html.match(/<p class="leftover">/g) ?? [];
@@ -90,7 +90,7 @@ test('each sheet states its leftovers exactly once', async () => {
 });
 
 test('every cut step is one numbered item keyed to its own sheet', async () => {
-  const plan = await seedPlan('omnisled-both.json');
+  const plan = await seedPlan('omnisled-full-and-mini.json');
   const html = renderResults(plan);
   for (const materialPlan of plan.materials) {
     materialPlan.sheets.forEach((sheetPlan, index) => {
@@ -123,7 +123,7 @@ test('a hostile part name is escaped in the to-do list', () => {
 });
 
 test('both entry points into the to-do list render the same sections', async () => {
-  const plan = await seedPlan('omnisled-mini.json');
+  const plan = await seedPlan('demo-omnisled-mini.json');
   const fromRows = cutListHtml(cutListRows(plan));
   const html = renderResults(plan);
   for (const section of fromRows.split('\n<section class="sheet-todo"')) {

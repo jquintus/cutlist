@@ -273,7 +273,7 @@ test('the edge trimmed off the sheet is called out on the piece it changes', () 
 // has to a real user's project, so the "nothing internal reaches a person"
 // rules are checked against them and not only against a fixture.
 async function seedPlans() {
-  const files = ['omnisled-full-size.json', 'omnisled-mini.json', 'omnisled-both.json'];
+  const files = ['demo-omnisled-full-size.json', 'demo-omnisled-mini.json', 'omnisled-full-and-mini.json'];
   return Promise.all(files.map(async (file) => {
     const text = await readFile(new URL(`../projects/${file}`, import.meta.url), 'utf8');
     const checked = validateProject(JSON.parse(text));
