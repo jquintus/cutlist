@@ -1,1 +1,57 @@
-{"schemaVersion":3,"name":"Storage","library":true,"date":"2026-09-13","notes":"Wood I have in the shop","displaySystem":"imperial","params":{"kerfIn":0.125,"edgeTrimIn":0},"materials":[{"id":"1e649f2c-3d5a-4f40-8a31-1b2c3d4e5f60","kind":"sheet","name":"3ply","thicknessIn":0.5,"thicknessLabel":"1/2 in","color":"#2f6f9f","sheets":[{"id":"2a750a3d-4e6b-4c51-9b42-2c3d4e5f6071","label":"","widthIn":37,"lengthIn":96,"qty":1,"note":""}]},{"id":"4c972c5f-6a8d-4e73-bd64-4e5f60718293","kind":"sheet","name":"5ply","thicknessIn":0.75,"thicknessLabel":"3/4 in","color":"#b1591f","sheets":[{"id":"5da83d60-7b9e-4f84-8e75-5f60718293a4","label":"","widthIn":17,"lengthIn":96,"qty":1,"note":""}]}],"parts":[],"supplies":[],"unplanned":[]}
+{
+  "schemaVersion": 3,
+  "name": "Storage",
+  "library": true,
+  "date": "2026-09-13",
+  "notes": "Wood I have in the shop",
+  "displaySystem": "imperial",
+  "params": {
+    "kerfIn": 0.125,
+    "edgeTrimIn": 0
+  },
+  "materials": [
+    {
+      "kind": "sheet",
+      "id": "1e649f2c-3d5a-4f40-8a31-1b2c3d4e5f60",
+      "name": "3ply",
+      "thicknessIn": 0.5,
+      "sheets": [
+        {
+          "id": "2a750a3d-4e6b-4c51-9b42-2c3d4e5f6071",
+          "widthIn": 37,
+          "lengthIn": 96,
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "kind": "sheet",
+      "id": "4c972c5f-6a8d-4e73-bd64-4e5f60718293",
+      "name": "5ply",
+      "thicknessIn": 0.75,
+      "sheets": [
+        {
+          "id": "5da83d60-7b9e-4f84-8e75-5f60718293a4",
+          "widthIn": 17,
+          "lengthIn": 96,
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "kind": "board",
+      "id": "996721fa-2f31-40ce-a872-e5fdada60aae",
+      "name": "Cherry",
+      "thicknessIn": 0.25,
+      "widthIn": 3,
+      "note": "Rocker https://www.rockler.com/cherry-by-the-piece-1-4-thickness",
+      "boards": [
+        {
+          "id": "e044e08f-7cd3-44df-a655-0840bcfd43ac",
+          "lengthIn": 48,
+          "qty": 2
+        }
+      ]
+    }
+  ]
+}
