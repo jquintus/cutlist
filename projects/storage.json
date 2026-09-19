@@ -85,6 +85,21 @@
           "qty": 1
         }
       ]
+    },
+    {
+      "kind": "board",
+      "id": "4e9ab0b9-cdd1-4901-bf7a-aeb0b7d54b31",
+      "summarySeparator": " x ",
+      "species": "Maple",
+      "thicknessIn": "1/4\"",
+      "widthIn": "5\"",
+      "boards": [
+        {
+          "id": "5dac3fbf-98ad-47d9-bf60-d5fa4cacb1d6",
+          "lengthIn": 24,
+          "qty": 1
+        }
+      ]
     }
   ]
 }
