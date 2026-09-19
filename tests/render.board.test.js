@@ -120,6 +120,7 @@ test('board shortfalls join the consolidated shopping list in HTML and PDF', () 
   const html = renderResults(withShopping);
   assert.match(html, /2 boards of White oak \(4\/4\), 7 in wide x 96 in long/);
   assert.doesNotMatch(html, /sheets of White oak/);
+  assert.doesNotMatch(html, /banner-buy/, 'the material section must not repeat the consolidated shopping list');
 
   const pdf = new TextDecoder().decode(buildPdf(withShopping));
   assert.match(pdf, /2 boards of White oak \\\(4\/4\\\), 7 in wide x 96 in long/);

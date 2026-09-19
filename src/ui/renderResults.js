@@ -24,15 +24,6 @@ function notesSection(plan) {
   return `<section class="notes-banner"><strong>Project notes</strong>\n${escapeHtml(plan.notes)}</section>`;
 }
 
-function buyBanner(materialPlan) {
-  const isBoard = materialPlan.kind === 'board';
-  const count = isBoard ? (materialPlan.extraBoardsNeeded ?? 0) : (materialPlan.extraSheetsNeeded ?? 0);
-  if (count === 0) return '';
-  const { widthIn, lengthIn } = materialPlan.buySpec;
-  const stockWord = isBoard ? (count === 1 ? 'board' : 'boards') : (count === 1 ? 'sheet' : 'sheets');
-  return `<p class="banner-buy">Shopping list: buy ${count} more ${escapeHtml(widthIn)} x ${escapeHtml(lengthIn)} ${stockWord} of ${escapeHtml(materialPlan.name)}.</p>`;
-}
-
 function purchaseUrl(value) {
   try {
     const parsed = new URL(value);
@@ -215,7 +206,7 @@ function materialSection(plan, materialPlan, view) {
 
   return `<section class="material-section">
     <h2>${escapeHtml(materialPlan.name)}${materialPlan.thicknessLabel ? ` (${escapeHtml(materialPlan.thicknessLabel)})` : ''}</h2>
-    ${note}${buyBanner(materialPlan)}${onHand}
+    ${note}${onHand}
     <div class="sheets">${articles}</div>
   </section>`;
 }
