@@ -82,3 +82,22 @@ test('the repack control is rendered beside the diagram', () => {
   assert.ok(html.includes('data-action="rotate-sheet"'), 'repack is not rendered');
   assert.ok(html.includes('data-action="rotate-view"'), 'turn picture is not rendered');
 });
+
+test('material creation and movement are keyed by material kind', async () => {
+  const mixed = normalizeProject({
+    materials: [
+      { id: 's1', kind: 'sheet', name: 'Ply' },
+      { id: 'b1', kind: 'board', name: 'Oak', widthIn: 3.5 },
+    ],
+    parts: [],
+  });
+  const html = renderForms(mixed, new Map());
+  assert.match(html, /data-action="add-material" data-kind="sheet"/);
+  assert.match(html, /data-action="add-material" data-kind="board"/);
+  assert.match(html, /data-action="move-material"[^>]*data-kind="sheet"/);
+  assert.match(html, /data-action="move-material"[^>]*data-kind="board"/);
+
+  const app = await readFile(new URL('../src/ui/app.js', import.meta.url), 'utf8');
+  assert.match(app, /const kind = dataset\.kind === 'board' \? 'board' : 'sheet'/);
+  assert.match(app, /candidate\.kind === material\.kind/);
+});

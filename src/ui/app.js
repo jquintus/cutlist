@@ -20,7 +20,7 @@ import { loadProjectIndex, loadProjectFile } from '../io/projects.js';
 import { encodeProject, decodeHash } from '../share/codec.js';
 import { loadRecovery, saveRecovery } from '../share/recovery.js';
 import { directUpload } from '../share/upload.js';
-import { THICKNESS_PRESETS, SHEET_PRESETS, thicknessLabelFor } from '../units.js';
+import { THICKNESS_PRESETS, BOARD_THICKNESS_PRESETS, SHEET_PRESETS, thicknessLabelFor } from '../units.js';
 import { buildPdf } from '../export/pdf.js';
 import { renderForms } from './renderForms.js';
 import { renderResults } from './renderResults.js';
@@ -338,6 +338,7 @@ function getPath(target, path) {
 
 const NUMERIC_FIELDS = /(\.|^)(kerfIn|edgeTrimIn|widthIn|lengthIn|qty|packQty|thicknessIn)$/;
 const SHEET_DIMENSION = /^materials\.(\d+)\.sheets\.(\d+)\.(widthIn|lengthIn)$/;
+const BOARD_LENGTH_FEET = /^materials\.(\d+)\.boards\.(\d+)\.lengthFt$/;
 const SUPPLY_COUNT = /^supplies\.\d+\.(qty|packQty)$/;
 
 function invalidSupplyCountIn(row) {
@@ -383,9 +384,27 @@ function applyFieldChange(fieldPath, input, { deferRender = false } = {}) {
       setPath(draft, fieldPath, input.checked === true);
       return;
     }
+    if (fieldPath.endsWith('.kind')) {
+      const base = fieldPath.replace(/\.kind$/, '');
+      const material = getPath(draft, base);
+      const nextKind = input.value === 'board' ? 'board' : 'sheet';
+      material.kind = nextKind;
+      if (nextKind === 'board') {
+        material.sheets = [];
+        if (!(material.widthIn > 0)) material.widthIn = 3.5;
+      } else {
+        material.boards = [];
+      }
+      const presets = nextKind === 'board' ? BOARD_THICKNESS_PRESETS : THICKNESS_PRESETS;
+      const preset = presets.find((candidate) => Math.abs(candidate.inches - material.thicknessIn) < 1e-6);
+      material.thicknessLabel = preset?.label ?? thicknessLabelFor(material.thicknessIn, draft.displaySystem);
+      setControlMode(material.id, preset === undefined ? 'custom' : 'preset');
+      return;
+    }
     if (fieldPath.endsWith('.thicknessPreset')) {
       const base = fieldPath.replace(/\.thicknessPreset$/, '');
-      const preset = THICKNESS_PRESETS.find((candidate) => candidate.id === input.value);
+      const presets = getPath(draft, `${base}.kind`) === 'board' ? BOARD_THICKNESS_PRESETS : THICKNESS_PRESETS;
+      const preset = presets.find((candidate) => candidate.id === input.value);
       // The choice is recorded whether or not it moves a number, which is what
       // makes picking "Other" visible even when the thickness is unchanged.
       setControlMode(getPath(draft, `${base}.id`), preset === undefined ? 'custom' : 'preset');
@@ -424,6 +443,13 @@ function applyFieldChange(fieldPath, input, { deferRender = false } = {}) {
         sheet[dimension] = readNumericEntry(input.value, sheet[dimension]);
       });
       syncSheetSizeMode(sheet);
+      return;
+    }
+    const boardLength = BOARD_LENGTH_FEET.exec(fieldPath);
+    if (boardLength !== null) {
+      const [, materialIndex, boardIndex] = boardLength;
+      const board = draft.materials[Number(materialIndex)].boards[Number(boardIndex)];
+      board.lengthIn = readNumericEntry(input.value, board.lengthIn / 12) * 12;
       return;
     }
     if (SUPPLY_COUNT.test(fieldPath)) {
@@ -496,26 +522,34 @@ const ACTIONS = {
   // derives a missing sheet id positionally, so ids would renumber after a
   // removal and a control mode keyed by sheet id would migrate onto a different
   // sheet.
-  'add-material': (draft) => {
+  'add-material': (draft, dataset) => {
+    const kind = dataset.kind === 'board' ? 'board' : 'sheet';
     const materialId = mintId('m', draft.materials.length + 1);
     draft.materials.push({
       id: materialId,
       // No invented name: an empty field reads as "fill this in", where
       // "Material 2" reads as a decision someone already made.
       name: '',
-      thicknessIn: 0.75,
-      thicknessLabel: '3/4 in',
+      thicknessIn: kind === 'board' ? 1 : 0.75,
+      thicknessLabel: kind === 'board' ? '4/4' : '3/4 in',
       note: '',
+      kind,
+      widthIn: kind === 'board' ? 3.5 : 0,
       // Empty note, same as add-sheet: sheetLabel() falls back to the sheet's
       // own dimensions for the heading, so nothing is lost by not inventing it.
-      sheets: [{ id: `${materialId}s1`, label: '', widthIn: 48, lengthIn: 96, qty: 1, note: '' }],
+      sheets: kind === 'sheet'
+        ? [{ id: `${materialId}s1`, label: '', widthIn: 48, lengthIn: 96, qty: 1, note: '' }]
+        : [],
+      boards: kind === 'board'
+        ? [{ id: `${materialId}b1`, label: '', lengthIn: 96, qty: 1, note: '' }]
+        : [],
     });
   },
   'remove-material': (draft, dataset) => {
     draft.materials.splice(Number(dataset.material), 1);
   },
   'add-sheet': (draft) => {
-    const material = draft.materials[0];
+    const material = draft.materials.find((candidate) => candidate.kind !== 'board');
     if (material === undefined) return;
     material.sheets.push({
       id: mintId(`${material.id}s`, material.sheets.length + 1),
@@ -528,14 +562,32 @@ const ACTIONS = {
       note: '',
     });
   },
+  'add-board': (draft) => {
+    const material = draft.materials.find((candidate) => candidate.kind === 'board');
+    if (material === undefined) return;
+    material.boards.push({
+      id: mintId(`${material.id}b`, material.boards.length + 1),
+      label: '',
+      lengthIn: 96,
+      qty: 1,
+      note: '',
+    });
+  },
   // Changing a sheet's material moves it between the two lists. The sheet keeps
   // its id, so a control mode set on it follows it across.
   'move-sheet-to': (draft, dataset) => {
     const from = Number(dataset.material);
     const to = Number(dataset.value);
-    if (from === to || Number.isNaN(to) || draft.materials[to] === undefined) return;
+    if (from === to || Number.isNaN(to) || draft.materials[to]?.kind === 'board') return;
     const [moved] = draft.materials[from].sheets.splice(Number(dataset.sheet), 1);
     draft.materials[to].sheets.push(moved);
+  },
+  'move-board-to': (draft, dataset) => {
+    const from = Number(dataset.material);
+    const to = Number(dataset.value);
+    if (from === to || Number.isNaN(to) || draft.materials[to]?.kind !== 'board') return;
+    const [moved] = draft.materials[from].boards.splice(Number(dataset.board), 1);
+    draft.materials[to].boards.push(moved);
   },
   // Swapping a sheet spec's two dimensions is a real project edit: it goes
   // through update() like any other, so the packer reruns and the plan changes.
@@ -582,7 +634,14 @@ const ACTIONS = {
     const key = dataset.key;
     sheetSort = { key, dir: sheetSort?.key === key && sheetSort.dir === 1 ? -1 : 1 };
     if (key === 'materialId') {
-      draft.materials.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }) * sheetSort.dir);
+      const positions = draft.materials
+        .map((material, index) => ({ material, index }))
+        .filter(({ material }) => material.kind !== 'board')
+        .map(({ index }) => index);
+      const sorted = positions
+        .map((index) => draft.materials[index])
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }) * sheetSort.dir);
+      positions.forEach((position, index) => { draft.materials[position] = sorted[index]; });
       return;
     }
     for (const material of draft.materials) {
@@ -591,19 +650,35 @@ const ACTIONS = {
   },
   'move-part': (draft, dataset) => moveWithin(draft.parts, dataset),
   'move-supply': (draft, dataset) => moveWithin(draft.supplies, dataset),
-  'move-material': (draft, dataset) => moveWithin(draft.materials, dataset),
+  'move-material': (draft, dataset) => {
+    const from = Number(dataset.material);
+    const material = draft.materials[from];
+    if (material === undefined || material.kind !== dataset.kind) return;
+    const peers = draft.materials
+      .map((candidate, index) => ({ candidate, index }))
+      .filter(({ candidate }) => candidate.kind === material.kind);
+    const position = peers.findIndex(({ index }) => index === from);
+    const target = peers[position + Number(dataset.dir)]?.index;
+    if (target === undefined) return;
+    [draft.materials[from], draft.materials[target]] = [draft.materials[target], draft.materials[from]];
+  },
   'move-sheet': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].sheets, dataset),
+  'move-board': (draft, dataset) => moveWithin(draft.materials[Number(dataset.material)].boards, dataset),
   'remove-sheet': (draft, dataset) => {
     draft.materials[Number(dataset.material)].sheets.splice(Number(dataset.sheet), 1);
   },
+  'remove-board': (draft, dataset) => {
+    draft.materials[Number(dataset.material)].boards.splice(Number(dataset.board), 1);
+  },
   'add-part': (draft) => {
+    const material = draft.materials[0];
     draft.parts.push({
       id: mintId('p', draft.parts.length + 1),
       name: '',
       qty: 1,
-      widthIn: 12,
+      widthIn: material?.kind === 'board' ? material.widthIn : 12,
       lengthIn: 12,
-      materialId: draft.materials[0]?.id ?? '',
+      materialId: material?.id ?? '',
       grainLocked: false,
     });
   },
@@ -783,6 +858,21 @@ async function openIndexedProject(file) {
 function onFieldEvent(event) {
   const fieldPath = event.target.dataset?.field;
   if (!fieldPath) return;
+  if (fieldPath.endsWith('.kind')) {
+    const base = fieldPath.replace(/\.kind$/, '');
+    const material = getPath(store.current, base);
+    const oldKind = material.kind === 'board' ? 'board' : 'sheet';
+    const newKind = event.target.value === 'board' ? 'board' : 'sheet';
+    const oldStock = oldKind === 'board' ? material.boards : material.sheets;
+    if (oldKind !== newKind && oldStock.length > 0) {
+      const noun = oldKind === 'board' ? 'board' : 'sheet';
+      const message = `Changing this group to ${newKind} stock removes ${oldStock.length} ${noun} stock entr${oldStock.length === 1 ? 'y' : 'ies'}. Continue?`;
+      if (!window.confirm(message)) {
+        render();
+        return;
+      }
+    }
+  }
   const supplyEditor = event.target.closest?.('.supply-edit');
   applyFieldChange(fieldPath, event.target, { deferRender: supplyEditor !== null });
   if (SUPPLY_COUNT.test(fieldPath)) {
@@ -834,6 +924,13 @@ el.forms.addEventListener('click', (event) => {
   const key = step.dataset.stepFor;
   const by = Number(step.dataset.step);
   update((draft) => {
+    const boardLength = BOARD_LENGTH_FEET.exec(key);
+    if (boardLength !== null) {
+      const [, materialIndex, boardIndex] = boardLength;
+      const board = draft.materials[Number(materialIndex)].boards[Number(boardIndex)];
+      board.lengthIn = Math.max(0, Math.round((board.lengthIn + by * 12) * 10000) / 10000);
+      return;
+    }
     const current = Number(getPath(draft, key));
     const base = Number.isFinite(current) ? current : 0;
     setPath(draft, key, Math.max(0, Math.round((base + by) * 10000) / 10000));

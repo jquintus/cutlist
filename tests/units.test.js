@@ -6,6 +6,7 @@ import {
   customThickness,
   customSheet,
   THICKNESS_PRESETS,
+  BOARD_THICKNESS_PRESETS,
   SHEET_PRESETS,
   thicknessLabelFor,
 } from '../src/units.js';
@@ -52,6 +53,18 @@ test('thickness presets cover 1/8 in through 1 in plus the metric sheet sizes', 
 test('sheet presets include the four stock sizes', () => {
   const ids = SHEET_PRESETS.map((preset) => preset.id);
   assert.deepEqual(ids, ['48x96', '48x48', '24x48', '60x60']);
+});
+
+test('board thickness presets use common quarter notation and rough dimensions', () => {
+  assert.deepEqual(
+    BOARD_THICKNESS_PRESETS.map(({ label, inches }) => [label, inches]),
+    [
+      ['4/4', 1],
+      ['5/4', 1.25],
+      ['6/4', 1.5],
+      ['8/4', 2],
+    ],
+  );
 });
 
 test('a custom value is preset shaped, not a separate code path', () => {

@@ -27,6 +27,10 @@ export function sheetKey(materialPlan, sheetPlan, index) {
   return `${materialPlan.materialId}:${sheetPlan.sheetSpecId}:${index}`;
 }
 
+export function boardKey(materialPlan, boardPlan, index) {
+  return `board:${materialPlan.materialId}:${boardPlan.boardSpecId}:${index}`;
+}
+
 function sizeLabel(w, h, system) {
   return `${formatLength(w, system)} x ${formatLength(h, system)}`;
 }
@@ -40,6 +44,10 @@ function sizeLabel(w, h, system) {
  */
 export function sourceLabel(source) {
   return source === 'to-buy' ? 'sheet to buy' : 'sheet on hand';
+}
+
+export function boardSourceLabel(source) {
+  return source === 'to-buy' ? 'board to buy' : 'board on hand';
 }
 
 /**
@@ -106,13 +114,65 @@ export function sheetRows(
   return rows;
 }
 
+/** Rows for one board, whose only planned dimension is length. */
+export function boardRows(
+  boardPlan,
+  materialPlan,
+  system,
+  index = materialPlan.boards.indexOf(boardPlan),
+) {
+  const key = boardKey(materialPlan, boardPlan, index);
+  const rows = [{
+    kind: 'board',
+    sheetKey: key,
+    materialName: materialPlan.name,
+    thicknessLabel: materialPlan.thicknessLabel,
+    boardLabel: boardPlan.label,
+    source: boardPlan.source,
+    sizeLabel: `${formatLength(boardPlan.widthIn, system)} wide x ${formatLength(boardPlan.lengthIn, system)} long`,
+  }];
+
+  for (const step of boardPlan.cuts) {
+    rows.push({
+      kind: 'cut',
+      sheetKey: key,
+      seq: step.seq,
+      measurement: formatLength(step.atIn, system),
+      boardCut: true,
+      referenceEdge: step.referenceEdge,
+      frees: '',
+    });
+  }
+
+  for (const placement of boardPlan.placements) {
+    rows.push({
+      kind: 'part',
+      sheetKey: key,
+      label: placement.label,
+      name: placement.name,
+      start: coordStr(placement.startIn),
+      length: coordStr(placement.lengthIn),
+      rotated: false,
+      sizeLabel: formatLength(placement.lengthIn, system),
+    });
+  }
+
+  for (const offcut of (boardPlan.offcuts ?? []).slice(0, LEFTOVERS_SHOWN)) {
+    rows.push({ kind: 'leftover', sheetKey: key, sizeLabel: formatLength(offcut.lengthIn, system) });
+  }
+  return rows;
+}
+
 /** Flat rows for the whole plan: every sheet's rows, in plan order. */
 export function cutListRows(plan) {
   const system = plan.displaySystem ?? 'imperial';
   const rows = [];
   for (const materialPlan of plan.materials) {
-    materialPlan.sheets.forEach((sheetPlan, index) => {
+    (materialPlan.sheets ?? []).forEach((sheetPlan, index) => {
       rows.push(...sheetRows(sheetPlan, materialPlan, system, index));
+    });
+    (materialPlan.boards ?? []).forEach((boardPlan, index) => {
+      rows.push(...boardRows(boardPlan, materialPlan, system, index));
     });
   }
   return rows;
@@ -125,11 +185,12 @@ function cutItemHtml(row) {
   // from ("the bottom piece from step 5") described the tree rather than the
   // job. The diagram carries the same step number, so which piece is which is
   // something you look at rather than something you parse.
-  const frees = row.frees === '' ? ''
+  const frees = !row.frees ? ''
     : ` <span class="frees">${escapeHtml(row.frees.replace(/^Frees /, ''))}</span>`;
+  const from = row.boardCut ? '' : ` <span class="from">from ${escapeHtml(row.referenceEdge)}</span>`;
   return `<li data-step="${row.seq}" data-sheet="${escapeHtml(row.sheetKey)}">`
     + `<span class="measure">${escapeHtml(row.measurement)}</span>`
-    + ` <span class="from">from ${escapeHtml(row.referenceEdge)}</span>${frees}</li>`;
+    + `${from}${frees}</li>`;
 }
 
 function partItemHtml(row, ticked) {
@@ -158,28 +219,36 @@ function leftoverHtml(rows) {
  * list and a sheet rendered under its own diagram cannot drift apart.
  */
 function sectionHtml(rows, ticked = new Set()) {
-  const header = rows.find((row) => row.kind === 'sheet');
+  const header = rows.find((row) => row.kind === 'sheet' || row.kind === 'board');
   const cuts = rows.filter((row) => row.kind === 'cut');
   const parts = rows.filter((row) => row.kind === 'part');
   const leftovers = rows.filter((row) => row.kind === 'leftover');
 
   const thickness = header.thicknessLabel ? ` ${escapeHtml(header.thicknessLabel)}` : '';
-  const title = `${escapeHtml(header.materialName)}${thickness}, ${escapeHtml(header.sheetLabel)}`
-    + ` (${escapeHtml(header.sizeLabel)}, ${sourceLabel(header.source)})`;
+  const isBoard = header.kind === 'board';
+  const stockLabel = isBoard ? header.boardLabel : header.sheetLabel;
+  const source = isBoard ? boardSourceLabel(header.source) : sourceLabel(header.source);
+  const title = `${escapeHtml(header.materialName)}${thickness}, ${escapeHtml(stockLabel)}`
+    + ` (${escapeHtml(header.sizeLabel)}, ${source})`;
+  const stockWord = isBoard ? 'BOARD' : 'SHEET';
 
   return `<section class="sheet-todo" data-sheet="${escapeHtml(header.sheetKey)}">
   <h3 class="sheet-todo-title">${title}</h3>
   <h4>CUTS</h4>
   <ol class="cuts">${cuts.map(cutItemHtml).join('')}</ol>
-  <h4>PARTS OFF THIS SHEET</h4>
+  <h4>PARTS OFF THIS ${stockWord}</h4>
   <ul class="parts">${parts.map((row) => partItemHtml(row, ticked)).join('')}</ul>
-  ${leftoverHtml(leftovers)}
+  ${leftoverHtml(leftovers).replace('this sheet', `this ${stockWord.toLowerCase()}`)}
 </section>`;
 }
 
 /** One sheet's to-do list, for rendering directly under that sheet's diagram. */
 export function sheetCutListHtml(sheetPlan, materialPlan, system, index, ticked = new Set()) {
   return sectionHtml(sheetRows(sheetPlan, materialPlan, system, index), ticked);
+}
+
+export function boardCutListHtml(boardPlan, materialPlan, system, index, ticked = new Set()) {
+  return sectionHtml(boardRows(boardPlan, materialPlan, system, index), ticked);
 }
 
 /**
@@ -191,7 +260,7 @@ export function sheetCutListHtml(sheetPlan, materialPlan, system, index, ticked 
 export function cutListHtml(rows, ticked = new Set()) {
   const sections = [];
   for (const row of rows) {
-    if (row.kind === 'sheet') sections.push([]);
+    if (row.kind === 'sheet' || row.kind === 'board') sections.push([]);
     if (sections.length > 0) sections[sections.length - 1].push(row);
   }
   return sections.map((section) => sectionHtml(section, ticked)).join('\n');

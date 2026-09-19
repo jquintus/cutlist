@@ -14,7 +14,7 @@
  */
 
 import { formatLength } from '../units.js';
-import { sourceLabel } from '../ui/renderTable.js';
+import { boardSourceLabel, sourceLabel } from '../ui/renderTable.js';
 
 const PAGE = { w: 612, h: 792 };        // US Letter, portrait, in points
 const MARGIN = 36;                       // half an inch
@@ -128,6 +128,34 @@ function drawSheetAt(pg, sheetPlan, left, top, scale, system) {
   return h;
 }
 
+/** A board is scaled only along its length; its drawn height stays readable. */
+function drawBoardAt(pg, boardPlan, left, top, scale, system) {
+  const w = boardPlan.lengthIn * scale;
+  const h = 36;
+  const barTop = top + 8;
+  const barH = 18;
+  pg.rect(left, barTop, w, barH, { stroke: 0, width: 1 });
+
+  for (const placement of boardPlan.placements) {
+    const x = left + placement.startIn * scale;
+    const partW = placement.lengthIn * scale;
+    pg.rect(x, barTop, partW, barH, { fill: 0.93, stroke: 0, width: 0.5 });
+    if (textWidth(placement.label, FONT.small) < partW - 3) {
+      pg.text(placement.label, x + (partW - textWidth(placement.label, FONT.small)) / 2,
+        barTop + (barH - FONT.small) / 2, { size: FONT.small, bold: true });
+    }
+  }
+
+  for (const step of boardPlan.cuts) {
+    const x = left + step.lineIn * scale;
+    pg.line(x, barTop - 2, x, barTop + barH + 2, { gray: 0, width: 0.7, dash: '3 2' });
+    const tag = formatLength(step.atIn, system);
+    const tagX = Math.min(Math.max(x - textWidth(tag, FONT.small) / 2, left), left + w - textWidth(tag, FONT.small));
+    pg.text(tag, tagX, barTop + barH + 3, { size: FONT.small, bold: true });
+  }
+  return h;
+}
+
 /**
  * The whole plan as a PDF byte array.
  *
@@ -170,7 +198,11 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
       const supplyText = entry.kind === 'supply'
         ? `${entry.buyQty} x ${entry.name || 'Unnamed'} (${supplyDetails.join('; ')})${entry.url ? ` ${entry.url}` : ''}`
         : null;
-      const text = supplyText ?? (`${entry.qty} sheet${entry.qty === 1 ? '' : 's'} of ${entry.name}${thickness}, `
+      const boardText = entry.kind === 'board'
+        ? `${entry.qty} board${entry.qty === 1 ? '' : 's'} of ${entry.name}${thickness}, `
+          + `${formatLength(entry.widthIn, system)} wide x ${formatLength(entry.lengthIn, system)} long`
+        : null;
+      const text = supplyText ?? boardText ?? (`${entry.qty} sheet${entry.qty === 1 ? '' : 's'} of ${entry.name}${thickness}, `
         + `${formatLength(entry.widthIn, system)} x ${formatLength(entry.lengthIn, system)}`);
       const rows = wrap(text, BODY - 13, FONT.body);
       room(rows.length * LINE + 2);
@@ -197,8 +229,10 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
   }
 
   for (const materialPlan of plan.materials) {
-    for (const sheetPlan of materialPlan.sheets) {
+    for (const sheetPlan of (materialPlan.sheets ?? [])) {
       const thickness = materialPlan.thicknessLabel ? ` (${materialPlan.thicknessLabel})` : '';
+      const noteRows = materialPlan.note ? wrap(materialPlan.note, BODY, FONT.small) : [];
+      const noteH = noteRows.length * (FONT.small + 2);
 
       // Every diagram at the same inches per point, measured against the widest
       // sheet in the project, so a 24 in panel is visibly half a 48 in one and
@@ -210,13 +244,17 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
 
       const rows = sheetPlan.cuts.length + sheetPlan.placements.length * 2;
       const columnH = FONT.small * 2 + 20 + rows * LINE;
-      const blockH = FONT.sub + 8 + Math.max(drawH, columnH) + 18;
+      const blockH = FONT.sub + 8 + noteH + Math.max(drawH, columnH) + 18;
 
       room(blockH);
 
       pg.text(`${materialPlan.name}${thickness} \u2014 ${sheetPlan.label} (${sourceLabel(sheetPlan.source)})`
         .replace('\u2014', '-'), MARGIN, top, { size: FONT.sub, bold: true });
       top += FONT.sub + 8;
+      for (const row of noteRows) {
+        pg.text(row, MARGIN, top, { size: FONT.small, gray: 0.25 });
+        top += FONT.small + 2;
+      }
 
       drawSheetAt(pg, sheetPlan, MARGIN, top, perInch, system);
 
@@ -263,10 +301,68 @@ export function buildPdf(plan, { title = 'cutlist' } = {}) {
     }
   }
 
+  const longestBoard = Math.max(1, ...plan.materials.flatMap((materialPlan) => (materialPlan.boards ?? [])
+    .map((boardPlan) => boardPlan.lengthIn)));
+  for (const materialPlan of plan.materials) {
+    for (const boardPlan of (materialPlan.boards ?? [])) {
+      const thickness = materialPlan.thicknessLabel ? ` (${materialPlan.thicknessLabel})` : '';
+      const noteRows = materialPlan.note ? wrap(materialPlan.note, BODY, FONT.small) : [];
+      const noteH = noteRows.length * (FONT.small + 2);
+      const fullW = BODY * 0.56;
+      const perInch = fullW / longestBoard;
+      const rows = boardPlan.cuts.length + boardPlan.placements.length * 2;
+      const columnH = FONT.small * 2 + 20 + rows * LINE;
+      const blockH = FONT.sub + 8 + noteH + Math.max(36, columnH) + 18;
+      room(blockH);
+
+      pg.text(`${materialPlan.name}${thickness} - ${boardPlan.label} (${boardSourceLabel(boardPlan.source)})`,
+        MARGIN, top, { size: FONT.sub, bold: true });
+      top += FONT.sub + 8;
+      for (const row of noteRows) {
+        pg.text(row, MARGIN, top, { size: FONT.small, gray: 0.25 });
+        top += FONT.small + 2;
+      }
+      drawBoardAt(pg, boardPlan, MARGIN, top, perInch, system);
+
+      const colX = MARGIN + fullW + 18;
+      let colTop = top;
+      pg.text('CUTS', colX, colTop, { size: FONT.small, bold: true, gray: 0.35 });
+      colTop += FONT.small + 5;
+      for (const step of boardPlan.cuts) {
+        pg.text(`${step.seq}.`, colX, colTop, { size: FONT.small, gray: 0.4 });
+        pg.text(formatLength(step.atIn, system), colX + 15, colTop, { bold: true });
+        colTop += LINE;
+      }
+
+      colTop += 6;
+      pg.text('PARTS', colX, colTop, { size: FONT.small, bold: true, gray: 0.35 });
+      colTop += FONT.small + 5;
+      for (const placement of boardPlan.placements) {
+        pg.checkbox(colX, colTop);
+        pg.text(placement.label, colX + 12, colTop, { bold: true, size: FONT.small });
+        pg.text(placement.name, colX + 12 + textWidth(placement.label, FONT.small) + 4, colTop, { size: FONT.small });
+        colTop += LINE - 2;
+        pg.text(formatLength(placement.lengthIn, system), colX + 12, colTop, { size: FONT.small, gray: 0.4 });
+        colTop += LINE - 1;
+      }
+
+      let bottom = Math.max(top + 36, colTop);
+      if ((boardPlan.offcuts ?? []).length > 0) {
+        bottom += 4;
+        const leftovers = boardPlan.offcuts.map((offcut) => formatLength(offcut.lengthIn, system)).join(', ');
+        pg.text(`Left over: ${leftovers}`,
+          MARGIN, bottom, { size: FONT.small, gray: 0.4 });
+        bottom += FONT.small + 2;
+      }
+      top = bottom + 16;
+      pg.line(MARGIN, top - 8, PAGE.w - MARGIN, top - 8, { gray: 0.75, width: 0.4 });
+    }
+  }
+
   if (pages.length === 0) {
     const pg = page();
     pg.text(title, MARGIN, MARGIN, { size: FONT.head, bold: true });
-    pg.text('This project has no sheets to lay out yet.', MARGIN, MARGIN + 24);
+    pg.text('This project has no stock to lay out yet.', MARGIN, MARGIN + 24);
     pages.push(pg);
   }
 

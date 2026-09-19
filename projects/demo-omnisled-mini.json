@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "OmniSled Mini",
   "date": "2026-09-12",
   "notes": "Stock on hand is exactly one 48 x 96 sheet of 1/4 in plywood and one 48 x 96 sheet of 1/2 in plywood.\nThe 6 mm parts come off the 1/4 in sheet. There is no 3/4 in plywood on hand, so the fence parts land on the shopping list on purpose.\nThe packer is a heuristic. Check every measurement against your own stock before you cut anything.",
@@ -11,6 +11,7 @@
   "materials": [
     {
       "id": "m-half",
+      "kind": "sheet",
       "name": "1/2 in plywood",
       "thicknessIn": 0.5,
       "thicknessLabel": "1/2 in",
@@ -28,6 +29,7 @@
     },
     {
       "id": "m-quarter",
+      "kind": "sheet",
       "name": "1/4 in plywood (6 mm substitute)",
       "thicknessIn": 0.25,
       "thicknessLabel": "1/4 in",
@@ -45,6 +47,7 @@
     },
     {
       "id": "m-three-quarter",
+      "kind": "sheet",
       "name": "3/4 in plywood",
       "thicknessIn": 0.75,
       "thicknessLabel": "3/4 in",
@@ -57,6 +60,26 @@
           "lengthIn": 96,
           "qty": 0,
           "note": ""
+        }
+      ]
+    },
+    {
+      "id": "m-miter-bar",
+      "kind": "board",
+      "name": "Dense hardwood miter bar",
+      "thicknessIn": 0.375,
+      "thicknessLabel": "3/8 in",
+      "widthIn": 0.75,
+      "note": "Fit the width to the saw's miter slots.",
+      "color": "#8a4f9e",
+      "sheets": [],
+      "boards": [
+        {
+          "id": "m-miter-bar-b1",
+          "label": "8 ft board (to buy)",
+          "lengthIn": 96,
+          "qty": 0,
+          "note": "Suitably dense hardwood"
         }
       ]
     }
@@ -106,15 +129,18 @@
       "lengthIn": 14,
       "materialId": "m-three-quarter",
       "grainLocked": false
-    }
-  ],
-  "unplanned": [
+    },
     {
+      "id": "mini-miter-bar",
       "name": "Miter Bar",
       "qty": 2,
-      "note": "Hardwood, not a sheet good. Linear board stock is deferred to round 2."
+      "widthIn": 0.75,
+      "lengthIn": 12.75,
+      "materialId": "m-miter-bar",
+      "grainLocked": true
     }
   ],
+  "unplanned": [],
   "supplies": [
     {
       "id": "s17898293629211",

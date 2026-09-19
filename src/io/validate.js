@@ -53,7 +53,7 @@ function schemaVersionSupported(raw) {
       message: `That project was saved by a newer version of cutlist (schema ${version}, this build reads ${SCHEMA_VERSION}).`,
     };
   }
-  if (version !== SCHEMA_VERSION) {
+  if (version !== 1 && version !== SCHEMA_VERSION) {
     return {
       field: 'schemaVersion',
       message: `That project uses schema ${version}, which this build no longer reads.`,
@@ -70,8 +70,23 @@ function materialsWellFormed(raw) {
     if (!isPlainObject(material)) {
       return { field: 'materials', message: 'One of the material groups is not an object.' };
     }
+    if (material.kind !== undefined && material.kind !== 'sheet' && material.kind !== 'board') {
+      return { field: 'materials', message: `Material group "${material.name}" has an unknown kind.` };
+    }
+    if (material.kind === 'board' && !finitePositive(material.widthIn)) {
+      return { field: 'materials', message: `Board material group "${material.name}" has a width that is not a positive number.` };
+    }
     if (material.sheets !== undefined && !Array.isArray(material.sheets)) {
       return { field: 'materials', message: `Material group "${material.name}" has a sheet list that is not a list.` };
+    }
+    if (material.boards !== undefined && !Array.isArray(material.boards)) {
+      return { field: 'materials', message: `Material group "${material.name}" has a board list that is not a list.` };
+    }
+    if (material.kind === 'board' && (material.sheets?.length ?? 0) > 0) {
+      return { field: 'materials', message: `Board material group "${material.name}" also contains sheet stock. Split it into separate material groups.` };
+    }
+    if (material.kind !== 'board' && (material.boards?.length ?? 0) > 0) {
+      return { field: 'materials', message: `Sheet material group "${material.name}" also contains board stock. Mark it as a board or split the stock into separate groups.` };
     }
     for (const sheet of material.sheets ?? []) {
       if (!isPlainObject(sheet)) {
@@ -82,6 +97,17 @@ function materialsWellFormed(raw) {
       }
       if (!finiteNonNegative(sheet.qty)) {
         return { field: 'materials', message: `Material group "${material.name}" has a sheet quantity that is not a number. Use 0 for a sheet you still need to buy.` };
+      }
+    }
+    for (const board of material.boards ?? []) {
+      if (!isPlainObject(board)) {
+        return { field: 'materials', message: `Material group "${material.name}" has a board entry that is not an object.` };
+      }
+      if (!finitePositive(board.lengthIn)) {
+        return { field: 'materials', message: `Material group "${material.name}" has a board with a length that is not a positive number.` };
+      }
+      if (!finiteNonNegative(board.qty)) {
+        return { field: 'materials', message: `Material group "${material.name}" has a board quantity that is not a number. Use 0 for a board you still need to buy.` };
       }
     }
   }

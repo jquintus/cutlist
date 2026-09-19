@@ -332,6 +332,7 @@ textarea { width: 100%; resize: vertical; }
 
 .material-section { margin: 0 0 22px; }
 .material-section > h2 { margin-bottom: 4px; font-size: 1rem; }
+.material-note { margin: 0 0 8px; color: var(--ink-soft); white-space: pre-line; }
 
 .sheet { margin: 0 0 16px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .sheet > h3 { margin-bottom: 8px; font-size: .9rem; }
@@ -344,6 +345,31 @@ textarea { width: 100%; resize: vertical; }
 .sheet-figure { min-width: 0; }
 .sheet-view { display: block; }
 .sheet-view svg, .sheet-svg { display: block; width: 100%; height: auto; }
+.board-view svg, .board-svg { display: block; width: 100%; height: auto; }
+.board-figure { min-width: 8%; }
+.board-part-label { fill: var(--ink); font-weight: 700; }
+.board-cut-label { fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: .2em; }
+.board-cut-line { stroke-dasharray: none; }
+
+.thickness-custom {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) minmax(5.5rem, .7fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.thickness-custom label { display: contents; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 /* Turning the picture.
  *
  * A bare `transform: rotate(90deg)` does not change an element's layout box, so
@@ -598,6 +624,7 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .sheet-step.is-off { opacity: .35; }
 
 .sub-head { margin: 16px 0 6px; font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); }
+.material-kind-head { margin-top: 22px; color: var(--ink); }
 .hint { margin: 6px 0 0; font-size: .8rem; }
 .add-row:disabled { opacity: .45; cursor: default; }
 .add-row:disabled:hover { border-color: var(--line); color: var(--ink-soft); }

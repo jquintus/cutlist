@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { directUpload, slugify, projectJson, urlBodyJson } from '../src/share/upload.js';
 import { validateProject } from '../src/io/validate.js';
 import { MAX_UPLOAD_URL_LEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH } from '../src/config.js';
-import { newProject } from '../src/model.js';
+import { newProject, SCHEMA_VERSION } from '../src/model.js';
 
 function smallProject() {
   const project = newProject();
@@ -82,7 +82,7 @@ test('direct upload stamps the same date and schema version a manual export woul
   const sent = JSON.parse(decodeURIComponent(result.url.split('&value=')[1]));
 
   assert.equal(sent.date, '2026-09-12');
-  assert.equal(sent.schemaVersion, 1);
+  assert.equal(sent.schemaVersion, SCHEMA_VERSION);
 });
 
 test("direct upload keeps a project's own date rather than overwriting it", () => {

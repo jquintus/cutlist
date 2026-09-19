@@ -51,7 +51,7 @@ async function main() {
     projects.push(summarize(file, parsed));
   }
 
-  const index = { schemaVersion: 1, projects };
+  const index = { schemaVersion: 2, projects };
   await writeFile(INDEX_FILE, `${JSON.stringify(index, null, 2)}\n`);
   console.log(`Wrote projects/index.json with ${projects.length} project(s).`);
 }

@@ -84,7 +84,7 @@ test('each sheet states its leftovers exactly once', async () => {
   const plan = await seedPlan('omnisled-full-and-mini.json');
   const html = renderResults(plan);
   const sheetCount = plan.materials.reduce((sum, material) => sum + material.sheets.length, 0);
-  const leftovers = html.match(/<p class="leftover">/g) ?? [];
+  const leftovers = html.match(/<p class="leftover">[^<]*from this sheet:/g) ?? [];
   assert.equal(leftovers.length, sheetCount);
   assert.ok(html.includes('Leftovers from this sheet: 44 3/8 in x 96 in'));
 });

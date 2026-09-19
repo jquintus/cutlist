@@ -8,7 +8,6 @@ import { readFile, readdir } from 'node:fs/promises';
 import { validateProject } from '../src/io/validate.js';
 import { planProject } from '../src/plan.js';
 import { validatePlan } from '../src/packer/invariants.js';
-import { sheetSvg } from '../src/ui/renderDiagram.js';
 import { cutListRows, cutListHtml } from '../src/ui/renderTable.js';
 import { encodeProject, decodeHash } from '../src/share/codec.js';
 
@@ -71,16 +70,18 @@ for (const file of SEEDS) {
     assert.equal(group.buySpec.lengthIn, 96);
   });
 
-  test(`${file} carries its miter bars and lays none of them out`, async () => {
+  test(`${file} plans its miter bars as board stock`, async () => {
     const plan = planProject(await loadSeed(file));
-    assert.ok(plan.unplanned.length >= 1);
-    assert.ok(plan.unplanned.every((item) => /Miter Bar/.test(item.name)));
-
-    const rendered = plan.materials.flatMap((materialPlan) => [
-      ...materialPlan.sheets.map((sheet) => sheetSvg(sheet, materialPlan, plan.params)),
-    ]).join('\n') + cutListHtml(cutListRows(plan));
-
-    assert.ok(!rendered.includes('Miter Bar'), 'a miter bar reached a diagram or the cut list');
+    assert.deepEqual(plan.unplanned, []);
+    const group = groupNamed(plan, 'miter bar');
+    assert.equal(group.kind, 'board');
+    assert.equal(group.widthIn, 0.75);
+    assert.equal(group.thicknessIn, 0.375);
+    assert.equal(group.extraBoardsNeeded, 1);
+    assert.equal(group.boards.length, 1);
+    const expectedCount = file === 'omnisled-full-and-mini.json' ? 4 : 2;
+    assert.equal(group.boards[0].placements.length, expectedCount);
+    assert.match(cutListHtml(cutListRows(plan)), /Miter Bar/);
   });
 
   test(`${file} round trips through a share link unchanged`, async () => {
@@ -102,20 +103,17 @@ test('omnisled-full-and-mini carries every part from both sleds under disambigua
   for (const expected of [
     'Full Base', 'Full Base Riser', 'Full Beveled Fence', 'Full Front Fence', 'Full Back Fence',
     'Mini Base', 'Mini Base Riser', 'Mini Beveled Fence', 'Mini Front Fence', 'Mini Back Fence',
+    'Full Miter Bar', 'Mini Miter Bar',
   ]) {
     assert.ok(names.includes(expected), `omnisled-full-and-mini is missing ${expected}`);
   }
-  assert.equal(project.unplanned.length, 2);
-  assert.deepEqual(
-    project.unplanned.map((item) => item.name),
-    ['Full Miter Bar', 'Mini Miter Bar'],
-  );
+  assert.deepEqual(project.unplanned, []);
 });
 
 test('projects/index.json lists exactly the project files beside it', async () => {
   const dir = new URL('../projects/', import.meta.url);
   const files = (await readdir(dir)).filter((name) => name.endsWith('.json') && name !== 'index.json').sort();
   const index = JSON.parse(await readFile(new URL('index.json', dir), 'utf8'));
-  assert.equal(index.schemaVersion, 1);
+  assert.equal(index.schemaVersion, 2);
   assert.deepEqual(index.projects.map((entry) => entry.file), files);
 });

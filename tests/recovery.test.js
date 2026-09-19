@@ -34,6 +34,19 @@ test('an unfinished supply row survives recovery', () => {
   assert.equal(recovered.project.supplies[0].name, '');
 });
 
+test('a schema 1 recovery copy migrates instead of disappearing on upgrade', () => {
+  const storage = memoryStorage();
+  storage.setItem(RECOVERY_KEY, JSON.stringify({
+    schemaVersion: 1,
+    materials: [{ id: 'ply', name: 'Plywood', sheets: [] }],
+    parts: [],
+  }));
+  const recovered = loadRecovery(storage);
+  assert.equal(recovered.ok, true);
+  assert.equal(recovered.project.schemaVersion, 2);
+  assert.equal(recovered.project.materials[0].kind, 'sheet');
+});
+
 test('unavailable storage never takes down the app', () => {
   const storage = {
     getItem: () => { throw new Error('blocked'); },

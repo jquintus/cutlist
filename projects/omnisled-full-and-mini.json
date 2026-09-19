@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "OmniSled Full Size and Mini",
   "date": "2026-09-12",
   "notes": "",
@@ -11,6 +11,7 @@
   "materials": [
     {
       "id": "m-half",
+      "kind": "sheet",
       "name": "1/2 in plywood",
       "thicknessIn": 0.5,
       "thicknessLabel": "1/2 in",
@@ -28,6 +29,7 @@
     },
     {
       "id": "m-quarter",
+      "kind": "sheet",
       "name": "1/4 in plywood (6 mm substitute)",
       "thicknessIn": 0.25,
       "thicknessLabel": "1/4 in",
@@ -45,6 +47,7 @@
     },
     {
       "id": "m-three-quarter",
+      "kind": "sheet",
       "name": "3/4 in plywood",
       "thicknessIn": 0.75,
       "thicknessLabel": "3/4 in",
@@ -57,6 +60,26 @@
           "lengthIn": 96,
           "qty": 0,
           "note": ""
+        }
+      ]
+    },
+    {
+      "id": "m-miter-bar",
+      "kind": "board",
+      "name": "Dense hardwood miter bar",
+      "thicknessIn": 0.375,
+      "thicknessLabel": "3/8 in",
+      "widthIn": 0.75,
+      "note": "Fit the width to the saw's miter slots.",
+      "color": "#8a4f9e",
+      "sheets": [],
+      "boards": [
+        {
+          "id": "m-miter-bar-b1",
+          "label": "8 ft board (to buy)",
+          "lengthIn": 96,
+          "qty": 0,
+          "note": "Suitably dense hardwood"
         }
       ]
     }
@@ -151,6 +174,24 @@
       "lengthIn": 14,
       "materialId": "m-three-quarter",
       "grainLocked": false
+    },
+    {
+      "id": "full-miter-bar",
+      "name": "Full Miter Bar",
+      "qty": 2,
+      "widthIn": 0.75,
+      "lengthIn": 25.5,
+      "materialId": "m-miter-bar",
+      "grainLocked": true
+    },
+    {
+      "id": "mini-miter-bar",
+      "name": "Mini Miter Bar",
+      "qty": 2,
+      "widthIn": 0.75,
+      "lengthIn": 12.75,
+      "materialId": "m-miter-bar",
+      "grainLocked": true
     }
   ],
   "supplies": [
@@ -215,16 +256,5 @@
       "url": "https://www.amazon.com/POWERTEC-QWS1003V-Phillips-Thread-Screws/dp/B07HWQDZR5?crid=1MLYJRERERVGK&dib=eyJ2IjoiMSJ9.UxGFs1W-DNi03VV3JMUlqUY0c1MtTamhCb3qzwgyqsfcdnGNupSvax4WN1v5g3TpC4cVYQFn83x66bmWOPTVNTdu449m03tIWxkdPidMR-hsM6kG22Nf0v4x3-0kVYuk_N93BJ2IxoKHCPHfpk0uyujwx7JOL5PKLmUR4CD6KBFFtEoqVz2Uh1zjF54frbDdzoUGM02TdSfYHF7sLQiOpoAJ2QolYKzkLkCINarVDdM.OlF5FthirX7tLkAHmfCYFGoJuuwps7Nb541MrvR6Ilc&dib_tag=se&keywords=6%2Bx%2B1%2F2%2Bwood%2Bscrews&qid=1765849053&sprefix=6%2Bx%2B1%2F2%2Bwood%2Bscrews%2Caps%2C172&sr=8-22&th=1&linkCode=sl1&tag=bustedknuck08-20&linkId=a333923fd69e631197b166143b016689&language=en_US"
     }
   ],
-  "unplanned": [
-    {
-      "name": "Full Miter Bar",
-      "qty": 2,
-      "note": "Hardwood, not a sheet good. Linear board stock is deferred to round 2."
-    },
-    {
-      "name": "Mini Miter Bar",
-      "qty": 2,
-      "note": "Hardwood, not a sheet good. Linear board stock is deferred to round 2."
-    }
-  ]
+  "unplanned": []
 }
