@@ -13,4 +13,6 @@ test('Pages CMS exposes Storage as a protected structured JSON file', async () =
   assert.doesNotMatch(config, /name: displaySystem|name: thicknessLabel|name: color|name: params/);
   assert.equal(config.match(/hidden: true/g)?.length, 4);
   assert.equal(config.match(/generate: false/g)?.length, 4);
+  assert.equal(config.match(/step: 0\.001/g)?.length, 6);
+  assert.equal(config.match(/step: 1$/gm)?.length, 2);
 });
