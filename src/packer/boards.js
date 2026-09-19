@@ -16,7 +16,9 @@ function boardLabel(spec, system = 'imperial') {
 export function boardBuySpecFor(material, system = 'imperial') {
   const usable = (material.boards ?? []).filter((board) => gtz(board.lengthIn));
   if (usable.length === 0) return null;
-  const longest = usable.reduce((best, board) =>
+  const declared = usable.filter((board) => board.qty === 0);
+  const candidates = declared.length > 0 ? declared : usable;
+  const longest = candidates.reduce((best, board) =>
     (board.lengthIn > best.lengthIn + EPS ? board : best));
   return { ...longest, label: boardLabel(longest, system) };
 }
@@ -29,7 +31,8 @@ function onHandSpecs(material, system) {
       specs.push({ ...board, label: boardLabel(board, system) });
     }
   }
-  return specs;
+  // Stable sorting preserves project order for equal-length physical boards.
+  return specs.sort((a, b) => a.lengthIn - b.lengthIn);
 }
 
 function usableFor(spec) {

@@ -1,0 +1,138 @@
+settings:
+  content:
+    merge: true
+
+content:
+  - name: storage
+    label: Storage
+    type: file
+    path: projects/storage.json
+    format: json
+    operations:
+      create: false
+      rename: false
+      delete: false
+    fields:
+      - name: schemaVersion
+        label: Schema version
+        type: number
+        readonly: true
+      - name: library
+        label: Stock library
+        type: boolean
+        readonly: true
+      - name: name
+        label: Name
+        type: string
+        required: true
+      - name: date
+        label: Updated
+        type: date
+      - name: notes
+        label: Notes
+        type: text
+      - name: displaySystem
+        label: Display system
+        type: select
+        required: true
+        options:
+          values:
+            - name: imperial
+              label: Imperial
+            - name: metric
+              label: Metric
+      - name: params
+        label: Cut settings
+        type: object
+        fields:
+          - name: kerfIn
+            label: Kerf (inches)
+            type: number
+            options:
+              min: 0
+          - name: edgeTrimIn
+            label: Edge trim (inches)
+            type: number
+            options:
+              min: 0
+      - name: materials
+        label: Materials
+        type: object
+        list:
+          collapsible:
+            collapsed: true
+            summary: "{name} ({kind})"
+        fields:
+          - name: id
+            label: ID
+            type: uuid
+            options:
+              editable: false
+              generate: false
+          - name: kind
+            label: Stock type
+            type: select
+            required: true
+            hidden: true
+            default: sheet
+            options:
+              values:
+                - name: sheet
+                  label: Sheet goods
+          - name: name
+            label: Material
+            type: string
+            required: true
+          - name: thicknessIn
+            label: Thickness (inches)
+            type: number
+            options:
+              min: 0.001
+          - name: thicknessLabel
+            label: Thickness label
+            type: string
+          - name: note
+            label: Notes
+            type: text
+          - name: color
+            label: Color
+            type: string
+            description: Hex color used in cut diagrams.
+          - name: sheets
+            label: Sheets
+            type: object
+            list:
+              collapsible:
+                collapsed: true
+                summary: "{label}: {widthIn} x {lengthIn} in (qty {qty})"
+            fields:
+              - name: id
+                label: ID
+                type: uuid
+                options:
+                  editable: false
+                  generate: false
+              - name: label
+                label: Label
+                type: string
+              - name: widthIn
+                label: Width (inches)
+                type: number
+                required: true
+                options:
+                  min: 0.001
+              - name: lengthIn
+                label: Length (inches)
+                type: number
+                required: true
+                options:
+                  min: 0.001
+              - name: qty
+                label: Quantity
+                type: number
+                required: true
+                options:
+                  min: 0
+              - name: note
+                label: Notes
+                type: text

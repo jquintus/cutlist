@@ -1,7 +1,7 @@
 // The canonical project shape. Everything downstream computes over this and
 // nothing else re-parses raw user input.
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const DEFAULT_KERF_IN = 0.125;
 export const DEFAULT_EDGE_TRIM_IN = 0;
@@ -20,6 +20,7 @@ export function newProject({ now = () => new Date() } = {}) {
   return {
     schemaVersion: SCHEMA_VERSION,
     name: '',
+    library: false,
     // Today, because the machine already knows it and a blank date is one more
     // field to fill in for something nobody wants to type.
     date: now().toISOString().slice(0, 10),
@@ -53,6 +54,14 @@ function arr(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function inventoryRef(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const file = str(value.file);
+  const materialId = str(value.materialId);
+  const stockId = str(value.stockId);
+  return file !== '' && materialId !== '' && stockId !== '' ? { file, materialId, stockId } : null;
+}
+
 /**
  * Fill defaults, assign missing ids, and coerce numeric strings.
  *
@@ -80,7 +89,7 @@ export function normalizeProject(raw) {
       color: str(material.color) || MATERIAL_COLORS[materialIndex % MATERIAL_COLORS.length],
       sheets: arr(material.sheets).map((rawSheet, sheetIndex) => {
         const sheet = rawSheet && typeof rawSheet === 'object' ? rawSheet : {};
-        return {
+        const normalized = {
           id: str(sheet.id) || `${materialId}s${sheetIndex + 1}`,
           label: str(sheet.label),
           widthIn: num(sheet.widthIn, 0),
@@ -88,16 +97,20 @@ export function normalizeProject(raw) {
           qty: intAtLeast(sheet.qty, 0, 0),
           note: str(sheet.note),
         };
+        const ref = inventoryRef(sheet.inventoryRef);
+        return ref === null ? normalized : { ...normalized, inventoryRef: ref };
       }),
       boards: arr(material.boards).map((rawBoard, boardIndex) => {
         const board = rawBoard && typeof rawBoard === 'object' ? rawBoard : {};
-        return {
+        const normalized = {
           id: str(board.id) || `${materialId}b${boardIndex + 1}`,
           label: str(board.label),
           lengthIn: num(board.lengthIn, 0),
           qty: intAtLeast(board.qty, 0, 0),
           note: str(board.note),
         };
+        const ref = inventoryRef(board.inventoryRef);
+        return ref === null ? normalized : { ...normalized, inventoryRef: ref };
       }),
     };
   });
@@ -153,11 +166,12 @@ export function normalizeProject(raw) {
 
   return {
     // normalizeProject returns the canonical in-memory shape. Reading an old
-    // project is therefore also its migration: the next save writes v2, while
+    // project is therefore also its migration: the next save writes v3, while
     // an older build sees that newer version and refuses it instead of
-    // silently dropping board stock.
+    // silently dropping the stock-library provenance added in v3.
     schemaVersion: SCHEMA_VERSION,
     name: str(source.name),
+    library: source.library === true,
     date: str(source.date),
     notes: str(source.notes),
     displaySystem: source.displaySystem === 'metric' ? 'metric' : 'imperial',

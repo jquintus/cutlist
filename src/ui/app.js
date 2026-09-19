@@ -17,6 +17,7 @@ import { validatePlan } from '../packer/invariants.js';
 import { validateProject } from '../io/validate.js';
 import { createProjectStore, exportProjectJson, readProjectJson, checkReadsBack } from '../io/importExport.js';
 import { loadProjectIndex, loadProjectFile } from '../io/projects.js';
+import { compatibleMaterialIds, hasLibraryStock, libraryStockRows, mergeLibraryStock } from '../io/stockLibrary.js';
 import { encodeProject, decodeHash } from '../share/codec.js';
 import { loadRecovery, saveRecovery } from '../share/recovery.js';
 import { directUpload } from '../share/upload.js';
@@ -72,15 +73,64 @@ function readOpenSections() {
 
 const el = {
   projectName: document.getElementById('project-name'),
+  appHead: document.querySelector('.app-head'),
+  landing: document.getElementById('landing'),
+  landingProjects: document.getElementById('landing-projects'),
+  landingLibraries: document.getElementById('landing-libraries'),
+  landingStatus: document.getElementById('landing-status'),
+  workspace: document.getElementById('workspace'),
   picker: document.getElementById('project-picker'),
   pickerStatus: document.getElementById('picker-status'),
   openDialog: document.getElementById('dialog-open'),
+  libraryDialog: document.getElementById('dialog-library'),
+  libraryForm: document.getElementById('library-form'),
+  libraryStatus: document.getElementById('library-status'),
+  libraryStock: document.getElementById('library-stock'),
+  libraryAdd: document.getElementById('library-add'),
   uploadLink: document.getElementById('link-upload'),
   forms: document.getElementById('forms'),
   results: document.getElementById('results'),
   status: document.getElementById('status'),
   importFile: document.getElementById('import-file'),
 };
+
+const STOCK_LIBRARY_FILE = 'storage.json';
+const PAGES_CMS_STORAGE_URL = 'https://app.pagescms.org/jquintus/cutlist/main/file/storage';
+const VIEW_STATE_KEY = 'cutlist:view';
+let stockLibrary = null;
+
+function rememberView(name) {
+  try {
+    sessionStorage.setItem(VIEW_STATE_KEY, name);
+  } catch {
+    // Presentation state is optional. The project still lives in its URL.
+  }
+}
+
+function rememberedView() {
+  try {
+    return sessionStorage.getItem(VIEW_STATE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function showEditor() {
+  document.body.classList.remove('landing-mode');
+  el.landing.hidden = true;
+  el.workspace.hidden = false;
+  el.appHead.hidden = false;
+  rememberView('editor');
+}
+
+function showLanding() {
+  document.body.classList.add('landing-mode');
+  el.landing.hidden = false;
+  el.workspace.hidden = true;
+  el.appHead.hidden = true;
+  setStatus('');
+  rememberView('landing');
+}
 
 function setStatus(message, tone = 'muted') {
   el.status.className = `status ${tone === 'error' ? 'banner-warn' : 'muted'}`;
@@ -817,15 +867,29 @@ async function copyShareLink(button) {
 }
 
 /**
- * Point the Save to GitHub anchor at the current project.
+ * Point the persistence anchor at the current project.
  *
  * A plain href, recomputed on every render: the destination is visible in the
  * status bar before the click, middle click and right click work, and nothing
  * navigates on anyone's behalf. An oversized project, which will not fit in a
  * prefilled URL, becomes a data: href with a download name -- still a real
- * link, still right-clickable, still nothing scripted.
+ * link, still right-clickable, still nothing scripted. A library is an
+ * existing file, so it points at its Pages CMS editor instead of GitHub's
+ * new-file page.
  */
 function updateUploadLink(project) {
+  if (project.library === true) {
+    el.uploadLink.href = PAGES_CMS_STORAGE_URL;
+    el.uploadLink.textContent = 'Edit saved inventory';
+    el.uploadLink.setAttribute('target', '_blank');
+    el.uploadLink.setAttribute('rel', 'noopener');
+    el.uploadLink.removeAttribute('download');
+    el.uploadLink.removeAttribute('aria-disabled');
+    return;
+  }
+  el.uploadLink.textContent = 'Save to GitHub';
+  el.uploadLink.removeAttribute('target');
+  el.uploadLink.removeAttribute('rel');
   const result = directUpload(project);
   el.uploadLink.removeAttribute('aria-disabled');
   if (result.kind === 'url') {
@@ -850,37 +914,142 @@ function loadProject(project) {
   view.rotated = {};
   view.ticked.clear();
   store.load(project);
+  showEditor();
   saveRecovery(sessionStorage, store.current);
   render();
+}
+
+function projectCard(entry) {
+  const date = entry.date ? `<span>${escapeHtml(entry.date)}</span>` : '';
+  const notes = entry.notes ? `<span>${escapeHtml(entry.notes)}</span>` : '';
+  return `<button type="button" class="landing-card" data-open-project="${escapeHtml(entry.file)}">
+    <strong>${escapeHtml(entry.name || entry.file)}</strong>
+    ${date}${notes}
+  </button>`;
+}
+
+function libraryCard(entry) {
+  return `<article class="landing-card landing-library-card">
+    <button type="button" data-open-project="${escapeHtml(entry.file)}">
+      <strong>${escapeHtml(entry.name || entry.file)}</strong>
+      <span>${escapeHtml(entry.notes || 'Stock on hand')}</span>
+      <span class="landing-open">Open in cutlist &rarr;</span>
+    </button>
+    <a href="${PAGES_CMS_STORAGE_URL}" target="_blank" rel="noopener">Edit inventory</a>
+  </article>`;
+}
+
+function renderLandingIndex(projects) {
+  const ordinary = projects.filter((entry) => entry.library !== true);
+  const libraries = projects.filter((entry) => entry.library === true);
+  el.landingProjects.innerHTML = ordinary.length > 0
+    ? ordinary.map(projectCard).join('')
+    : '<p class="muted">No saved projects yet.</p>';
+  el.landingLibraries.innerHTML = libraries.length > 0
+    ? libraries.map(libraryCard).join('')
+    : '<p class="muted">No storage library is configured.</p>';
 }
 
 
 async function populatePicker() {
   const result = await loadProjectIndex();
   const options = ['<option value="">Pick a project</option>'];
-  for (const entry of result.projects) {
+  for (const entry of result.projects.filter((project) => project.library !== true)) {
     options.push(`<option value="${escapeHtml(entry.file)}">${escapeHtml(entry.name || entry.file)}</option>`);
   }
   el.picker.innerHTML = options.join('');
   el.pickerStatus.textContent = result.ok ? '' : result.message;
+  renderLandingIndex(result.projects);
+  el.landingStatus.textContent = result.ok ? '' : result.message;
 }
 
 async function openIndexedProject(file) {
   if (file === '') return;
   const result = await loadProjectFile(file);
   if (!result.ok) {
+    el.pickerStatus.textContent = result.message;
+    el.landingStatus.textContent = result.message;
     return;
   }
   // An in-repo project is not attached to a local save: saving it should ask
   // where to put it rather than silently overwriting something.
   loadProject(result.project);
-  el.openDialog.close();
+  if (el.openDialog.open) el.openDialog.close();
   // A <select> that fires only on an actual value change never notices a
   // repeated pick of the option already showing, so choosing the same
   // built-in project a second time -- to discard edits and reload it fresh --
   // did nothing. Clearing the value here makes the next pick of it, however
   // soon, a real change again.
   el.picker.value = '';
+}
+
+function libraryMaterialHtml(material, project) {
+  const compatible = compatibleMaterialIds(project, material);
+  const defaultTarget = compatible.length === 1 ? compatible[0] : '';
+  const targetOptions = [
+    '<option value="">Create a new material group</option>',
+    ...compatible.map((id) => {
+      const target = project.materials.find((candidate) => candidate.id === id);
+      return `<option value="${escapeHtml(id)}"${id === defaultTarget ? ' selected' : ''}>Add to ${escapeHtml(target.name || 'Unnamed')}</option>`;
+    }),
+  ].join('');
+  const kind = material.kind === 'board' ? 'board' : 'sheet';
+  const rows = (material.kind === 'board' ? material.boards : material.sheets)
+    .filter((stock) => stock.qty > 0)
+    .map((stock) => {
+      const alreadyAdded = hasLibraryStock(project, STOCK_LIBRARY_FILE, material.id, stock.id);
+      const size = material.kind === 'board'
+        ? `${stock.lengthIn / 12} ft long`
+        : `${stock.widthIn} × ${stock.lengthIn} in`;
+      const note = stock.label || stock.note;
+      return `<label class="library-stock-row">
+        <input type="checkbox"${alreadyAdded ? ' disabled' : ''} data-library-material="${escapeHtml(material.id)}" data-library-stock="${escapeHtml(stock.id)}" />
+        <span><strong>${escapeHtml(stock.qty)} × ${escapeHtml(size)}</strong>${note ? ` — ${escapeHtml(note)}` : ''}${alreadyAdded ? ' — Already added' : ''}</span>
+      </label>`;
+    }).join('');
+  if (rows === '') return '';
+  return `<fieldset class="library-material" data-library-group="${escapeHtml(material.id)}">
+    <legend>${escapeHtml(material.name || 'Unnamed')} <span class="muted">${escapeHtml(material.thicknessLabel || material.thicknessIn)} ${kind}</span></legend>
+    <label>Put selected stock in
+      <select data-library-target="${escapeHtml(material.id)}">${targetOptions}</select>
+    </label>
+    <div class="library-stock-list">${rows}</div>
+  </fieldset>`;
+}
+
+function renderStockLibrary(library) {
+  const stockRows = libraryStockRows(library);
+  if (stockRows.length === 0) {
+    el.libraryStock.innerHTML = '<p class="muted">The stock library is empty.</p>';
+    el.libraryAdd.disabled = true;
+    return;
+  }
+  el.libraryStock.innerHTML = library.materials
+    .map((material) => libraryMaterialHtml(material, store.current))
+    .join('');
+  const availableRows = stockRows.filter(({ material, stock }) => (
+    !hasLibraryStock(store.current, STOCK_LIBRARY_FILE, material.id, stock.id)
+  ));
+  el.libraryAdd.disabled = availableRows.length === 0;
+  if (availableRows.length === 0) {
+    el.libraryStatus.textContent = 'All on-hand stock is already in this project.';
+  }
+}
+
+async function openStockLibrary() {
+  stockLibrary = null;
+  el.libraryStatus.textContent = 'Loading stock…';
+  el.libraryStock.innerHTML = '';
+  el.libraryAdd.disabled = true;
+  el.libraryDialog.showModal();
+  const result = await loadProjectFile(STOCK_LIBRARY_FILE);
+  if (!result.ok) {
+    el.libraryStatus.textContent = result.message;
+    return;
+  }
+  stockLibrary = result.project;
+  el.libraryStatus.textContent = '';
+  renderStockLibrary(stockLibrary);
 }
 
 // ---------------------------------------------------------------------------
@@ -1033,12 +1202,39 @@ el.uploadLink.addEventListener('click', (event) => {
   if (rejectInvalidSupplyCount('saving to GitHub')) event.preventDefault();
 });
 
-// New project is a plain link to this page with no fragment, so it behaves like
+// New project is a plain link to this page with an explicit query, so it behaves like
 // Save to GitHub: middle-click or cmd-click opens a blank project in a tab of
 // its own, and where it opens stays the reader's call. No handler, because a
 // handler is what would take that choice away.
 
 document.getElementById('btn-open').addEventListener('click', () => el.openDialog.showModal());
+el.landing.addEventListener('click', (event) => {
+  const opener = event.target.closest?.('[data-open-project]');
+  if (opener) openIndexedProject(opener.dataset.openProject);
+});
+document.getElementById('btn-library').addEventListener('click', openStockLibrary);
+document.getElementById('library-close').addEventListener('click', () => el.libraryDialog.close());
+
+el.libraryForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (stockLibrary === null) return;
+  const selected = [...el.libraryStock.querySelectorAll('[data-library-stock]:checked')]
+    .map((input) => ({ materialId: input.dataset.libraryMaterial, stockId: input.dataset.libraryStock }));
+  const targets = Object.fromEntries(
+    [...el.libraryStock.querySelectorAll('[data-library-target]')]
+      .map((select) => [select.dataset.libraryTarget, select.value]),
+  );
+  const result = mergeLibraryStock(store.current, stockLibrary, selected, targets, { sourceFile: STOCK_LIBRARY_FILE });
+  if (!result.ok) {
+    el.libraryStatus.textContent = result.message;
+    return;
+  }
+  store.load(normalizeProject(result.project));
+  saveRecovery(sessionStorage, store.current);
+  el.libraryDialog.close();
+  render();
+  setStatus(`Added ${result.copied} stock item${result.copied === 1 ? '' : 's'} from the library.`);
+});
 
 // Export a PDF outright: one click, a file, nothing to choose. Going through
 // the print dialog put a Save as PDF destination in front of someone who had
@@ -1076,6 +1272,7 @@ document.getElementById('btn-import').addEventListener('click', () => el.importF
 // A reload right after typing should not land on a hash from before the last
 // few keystrokes just because the debounce window had not closed yet.
 window.addEventListener('pagehide', () => {
+  if (document.body.classList.contains('landing-mode')) return;
   saveRecovery(sessionStorage, store.current);
   debouncedWriteHash.flush();
 });
@@ -1143,12 +1340,17 @@ view.focusSheet = focusFromHash();
 view.focusView = viewFromHash();
 view.ticked = ticksFromHash();
 
+const forceNew = new URLSearchParams(location.search).has('new');
 const restored = decodeHash(location.hash);
 const navigation = performance.getEntriesByType?.('navigation')?.[0];
-const reloadLostHash = location.hash === '' && navigation?.type === 'reload';
+const reloadLostHash = location.hash === '' && navigation?.type === 'reload' && rememberedView() !== 'landing';
 let startupStatus = '';
 let startupStatusKind = '';
-if (restored.ok) {
+let showHome = false;
+if (forceNew) {
+  history.replaceState(null, '', location.pathname);
+  store.load(newProject());
+} else if (restored.ok) {
   store.load(restored.project);
 } else if (location.hash !== '' || reloadLostHash) {
   const recovery = loadRecovery(sessionStorage);
@@ -1158,11 +1360,20 @@ if (restored.ok) {
   } else if (location.hash !== '') {
     startupStatus = restored.error;
     startupStatusKind = 'error';
+  } else {
+    showHome = true;
   }
+} else {
+  showHome = true;
 }
-saveRecovery(sessionStorage, store.current);
-document.body.classList.toggle('focus-sheet', view.focusSheet !== null || view.focusView !== null);
-render();
-if (startupStatus !== '') setStatus(startupStatus, startupStatusKind);
-refreshSheetLinks();
+if (showHome) {
+  showLanding();
+} else {
+  showEditor();
+  saveRecovery(sessionStorage, store.current);
+  document.body.classList.toggle('focus-sheet', view.focusSheet !== null || view.focusView !== null);
+  render();
+  if (startupStatus !== '') setStatus(startupStatus, startupStatusKind);
+  refreshSheetLinks();
+}
 populatePicker();

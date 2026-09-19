@@ -34,12 +34,17 @@ function sheetLabel(spec) {
 export function buySpecFor(material) {
   const usable = (material.sheets ?? []).filter((s) => gtz(s.widthIn) && gtz(s.lengthIn));
   if (usable.length === 0) return { ...FALLBACK_SHEET, id: 'fallback', fallback: true };
-  const largest = usable.reduce((best, s) =>
+  // Quantity zero explicitly declares a purchase size. Prefer those rows so
+  // an imported offcut cannot quietly become the sheet named on the shopping
+  // list merely because it is the largest physical piece on hand.
+  const declared = usable.filter((sheet) => sheet.qty === 0);
+  const candidates = declared.length > 0 ? declared : usable;
+  const largest = candidates.reduce((best, s) =>
     (s.widthIn * s.lengthIn > best.widthIn * best.lengthIn ? s : best));
   return { ...largest, label: sheetLabel(largest), fallback: false };
 }
 
-/** On-hand sheets, one entry per physical sheet, in the order the group lists them. */
+/** On-hand sheets, one entry per physical sheet, smallest first. */
 function onHandSpecs(material) {
   const specs = [];
   for (const sheet of material.sheets ?? []) {
@@ -48,7 +53,9 @@ function onHandSpecs(material) {
       specs.push({ ...sheet, label: sheetLabel(sheet) });
     }
   }
-  return specs;
+  // Array#sort is stable, so equal-area sheets retain project order. That
+  // keeps the result deterministic while preserving the user's tie-breaker.
+  return specs.sort((a, b) => (a.widthIn * a.lengthIn) - (b.widthIn * b.lengthIn));
 }
 
 function usableRegion(spec, edgeTrimIn) {

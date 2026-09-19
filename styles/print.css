@@ -20,6 +20,7 @@
 
   /* Everything you use to build the plan, and nothing you use to cut it. */
   .app-head,
+  .landing,
   .inputs,
   .status,
   dialog,

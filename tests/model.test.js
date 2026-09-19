@@ -11,6 +11,7 @@ import {
 test('newProject carries the schema version and the documented defaults', () => {
   const project = newProject();
   assert.equal(project.schemaVersion, SCHEMA_VERSION);
+  assert.equal(project.library, false);
   assert.equal(project.params.kerfIn, 0.125);
   assert.equal(project.params.edgeTrimIn, 0);
   assert.deepEqual(project.unplanned, []);
@@ -19,6 +20,7 @@ test('newProject carries the schema version and the documented defaults', () => 
 test('normalizeProject fills the defaults on an empty object', () => {
   const project = normalizeProject({});
   assert.equal(project.schemaVersion, SCHEMA_VERSION);
+  assert.equal(project.library, false);
   assert.equal(project.params.kerfIn, 0.125);
   assert.equal(project.params.edgeTrimIn, 0);
   assert.deepEqual(project.unplanned, []);
@@ -26,12 +28,12 @@ test('normalizeProject fills the defaults on an empty object', () => {
   assert.deepEqual(project.parts, []);
 });
 
-test('normalizeProject migrates sheet materials to the v2 canonical shape', () => {
+test('normalizeProject migrates sheet materials to the current canonical shape', () => {
   const project = normalizeProject({
     schemaVersion: 1,
     materials: [{ id: 'm1', name: 'Ply', note: 'Cabinet grade' }],
   });
-  assert.equal(project.schemaVersion, 2);
+  assert.equal(project.schemaVersion, 3);
   assert.deepEqual(project.materials[0], {
     id: 'm1',
     name: 'Ply',

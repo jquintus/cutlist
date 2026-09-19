@@ -21,6 +21,7 @@ function summarize(file, project) {
     file,
     slug: file.replace(/\.json$/, ''),
     name: typeof project.name === 'string' ? project.name : '',
+    library: project.library === true,
     date: typeof project.date === 'string' ? project.date : '',
     notes: typeof project.notes === 'string' ? project.notes : '',
     materialCount: Array.isArray(project.materials) ? project.materials.length : 0,

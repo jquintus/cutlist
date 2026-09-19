@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { packMaterial } from '../src/packer/index.js';
+import { buySpecFor, packMaterial } from '../src/packer/index.js';
 import { checkGuillotine } from '../src/packer/invariants.js';
 import { EPS } from '../src/geometry.js';
 import { assertValidLayout } from './fixtures/assertValid.js';
@@ -19,6 +19,14 @@ function pack(project) {
     params: project.params,
   });
 }
+
+test('a quantity-zero sheet stays the purchase size when larger offcuts are on hand', () => {
+  const spec = buySpecFor({ sheets: [
+    { id: 'offcut', widthIn: 60, lengthIn: 60, qty: 1 },
+    { id: 'buy', widthIn: 48, lengthIn: 96, qty: 0 },
+  ] });
+  assert.equal(spec.id, 'buy');
+});
 
 test('case 1: a mixed part set packs with no overlap, in bounds, kerf respected', () => {
   const project = mixedPartsProject();
@@ -102,6 +110,64 @@ test('case 6: packing the same input twice gives deeply equal results', () => {
   const first = pack(mixedPartsProject());
   const second = pack(mixedPartsProject());
   assert.deepEqual(first, second);
+});
+
+test('on-hand sheets are tried by area from smallest to largest', () => {
+  const project = {
+    materials: [{
+      id: 'm1',
+      sheets: [
+        { id: 'large', widthIn: 48, lengthIn: 96, qty: 1 },
+        { id: 'small', widthIn: 12, lengthIn: 12, qty: 1 },
+      ],
+    }],
+    parts: [{ id: 'p1', name: 'Small part', qty: 1, widthIn: 10, lengthIn: 10, materialId: 'm1' }],
+    params: { kerfIn: 0, edgeTrimIn: 0 },
+  };
+
+  const result = pack(project);
+
+  assert.equal(result.sheets.length, 1);
+  assert.equal(result.sheets[0].sheetSpecId, 'small');
+});
+
+test('an unsuitable small offcut is skipped for the next-smallest suitable sheet', () => {
+  const project = {
+    materials: [{
+      id: 'm1',
+      sheets: [
+        { id: 'large', widthIn: 48, lengthIn: 96, qty: 1 },
+        { id: 'tiny', widthIn: 5, lengthIn: 5, qty: 1 },
+        { id: 'medium', widthIn: 12, lengthIn: 12, qty: 1 },
+      ],
+    }],
+    parts: [{ id: 'p1', name: 'Small part', qty: 1, widthIn: 10, lengthIn: 10, materialId: 'm1' }],
+    params: { kerfIn: 0, edgeTrimIn: 0 },
+  };
+
+  const result = pack(project);
+
+  assert.equal(result.sheets.length, 1);
+  assert.equal(result.sheets[0].sheetSpecId, 'medium');
+});
+
+test('equal-area on-hand sheets retain project order', () => {
+  const project = {
+    materials: [{
+      id: 'm1',
+      sheets: [
+        { id: 'first', widthIn: 12, lengthIn: 16, qty: 1 },
+        { id: 'second', widthIn: 8, lengthIn: 24, qty: 1 },
+      ],
+    }],
+    parts: [{ id: 'p1', name: 'Tie breaker', qty: 1, widthIn: 6, lengthIn: 10, materialId: 'm1' }],
+    params: { kerfIn: 0, edgeTrimIn: 0 },
+  };
+
+  const result = pack(project);
+
+  assert.equal(result.sheets.length, 1);
+  assert.equal(result.sheets[0].sheetSpecId, 'first');
 });
 
 test('a part with a blank or zero width or length is rejected before layout, never placed', () => {

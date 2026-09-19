@@ -26,6 +26,11 @@ function finiteNonNegative(value) {
   return Number.isFinite(parsed) && parsed >= 0;
 }
 
+function nonNegativeInteger(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0;
+}
+
 function safeHttpUrl(value) {
   try {
     const parsed = new URL(value);
@@ -53,11 +58,25 @@ function schemaVersionSupported(raw) {
       message: `That project was saved by a newer version of cutlist (schema ${version}, this build reads ${SCHEMA_VERSION}).`,
     };
   }
-  if (version !== 1 && version !== SCHEMA_VERSION) {
+  if (![1, 2, SCHEMA_VERSION].includes(version)) {
     return {
       field: 'schemaVersion',
       message: `That project uses schema ${version}, which this build no longer reads.`,
     };
+  }
+  return null;
+}
+
+function inventoryRefWellFormed(stock, materialName) {
+  if (stock.inventoryRef === undefined) return null;
+  if (!isPlainObject(stock.inventoryRef)
+      || typeof stock.inventoryRef.file !== 'string'
+      || stock.inventoryRef.file.trim() === ''
+      || typeof stock.inventoryRef.materialId !== 'string'
+      || stock.inventoryRef.materialId.trim() === ''
+      || typeof stock.inventoryRef.stockId !== 'string'
+      || stock.inventoryRef.stockId.trim() === '') {
+    return { field: 'materials', message: `Material group "${materialName}" has stock with a damaged library reference.` };
   }
   return null;
 }
@@ -95,9 +114,11 @@ function materialsWellFormed(raw) {
       if (!finitePositive(sheet.widthIn) || !finitePositive(sheet.lengthIn)) {
         return { field: 'materials', message: `Material group "${material.name}" has a sheet with a width or length that is not a positive number.` };
       }
-      if (!finiteNonNegative(sheet.qty)) {
-        return { field: 'materials', message: `Material group "${material.name}" has a sheet quantity that is not a number. Use 0 for a sheet you still need to buy.` };
+      if (!nonNegativeInteger(sheet.qty)) {
+        return { field: 'materials', message: `Material group "${material.name}" has a sheet quantity that is not a whole number. Use 0 for a sheet you still need to buy.` };
       }
+      const refError = inventoryRefWellFormed(sheet, material.name);
+      if (refError !== null) return refError;
     }
     for (const board of material.boards ?? []) {
       if (!isPlainObject(board)) {
@@ -106,10 +127,19 @@ function materialsWellFormed(raw) {
       if (!finitePositive(board.lengthIn)) {
         return { field: 'materials', message: `Material group "${material.name}" has a board with a length that is not a positive number.` };
       }
-      if (!finiteNonNegative(board.qty)) {
-        return { field: 'materials', message: `Material group "${material.name}" has a board quantity that is not a number. Use 0 for a board you still need to buy.` };
+      if (!nonNegativeInteger(board.qty)) {
+        return { field: 'materials', message: `Material group "${material.name}" has a board quantity that is not a whole number. Use 0 for a board you still need to buy.` };
       }
+      const refError = inventoryRefWellFormed(board, material.name);
+      if (refError !== null) return refError;
     }
+  }
+  return null;
+}
+
+function libraryWellFormed(raw) {
+  if (raw.library !== undefined && typeof raw.library !== 'boolean') {
+    return { field: 'library', message: 'The library flag is not true or false.' };
   }
   return null;
 }
@@ -227,6 +257,7 @@ function paramsWellFormed(raw) {
 export const VALIDATORS = Object.freeze([
   hasObjectShape,
   schemaVersionSupported,
+  libraryWellFormed,
   materialsWellFormed,
   partsWellFormed,
   suppliesWellFormed,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeProject } from '../src/model.js';
-import { packBoardMaterial } from '../src/packer/boards.js';
+import { boardBuySpecFor, packBoardMaterial } from '../src/packer/boards.js';
 
 function boardProject({ widthIn = 3.5, boardLengthIn = 96, boardQty = 1, parts = [] } = {}) {
   return normalizeProject({
@@ -31,6 +31,14 @@ function pack(project, params = project.params) {
     system: project.displaySystem,
   });
 }
+
+test('a quantity-zero board stays the purchase length when longer offcuts are on hand', () => {
+  const spec = boardBuySpecFor({ boards: [
+    { id: 'offcut', lengthIn: 120, qty: 1 },
+    { id: 'buy', lengthIn: 96, qty: 0 },
+  ] });
+  assert.equal(spec.id, 'buy');
+});
 
 test('board packing is stable first-fit decreasing', () => {
   const project = boardProject({
@@ -77,6 +85,32 @@ test('on-hand boards stay ahead of purchased boards', () => {
 
   assert.deepEqual(result.boards.map((board) => board.source), ['on-hand', 'to-buy']);
   assert.equal(result.onHandBoardCount, 1);
+});
+
+test('on-hand boards are tried by length from shortest to longest', () => {
+  const project = boardProject({ boardLengthIn: null, parts: [{ lengthIn: 40 }] });
+  project.materials[0].boards = [
+    { id: 'long', label: '8 ft', lengthIn: 96, qty: 1, note: '' },
+    { id: 'short', label: '4 ft', lengthIn: 48, qty: 1, note: '' },
+  ];
+
+  const result = pack(project);
+
+  assert.equal(result.boards.length, 1);
+  assert.equal(result.boards[0].boardSpecId, 'short');
+});
+
+test('equal-length on-hand boards retain project order', () => {
+  const project = boardProject({ boardLengthIn: null, parts: [{ lengthIn: 40 }] });
+  project.materials[0].boards = [
+    { id: 'first', label: 'First', lengthIn: 48, qty: 1, note: '' },
+    { id: 'second', label: 'Second', lengthIn: 48, qty: 1, note: '' },
+  ];
+
+  const result = pack(project);
+
+  assert.equal(result.boards.length, 1);
+  assert.equal(result.boards[0].boardSpecId, 'first');
 });
 
 test('board parts must match the final stock width', () => {

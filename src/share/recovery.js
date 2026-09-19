@@ -36,7 +36,7 @@ export function loadRecovery(storage) {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, error: 'The recovery copy is not a cutlist project.' };
   }
-  if (![1, SCHEMA_VERSION].includes(Number(parsed.schemaVersion))) {
+  if (![1, 2, SCHEMA_VERSION].includes(Number(parsed.schemaVersion))) {
     return { ok: false, error: 'The recovery copy uses an unsupported schema.' };
   }
   return { ok: true, project: normalizeProject(parsed) };

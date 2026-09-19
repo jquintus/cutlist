@@ -151,6 +151,48 @@ textarea { width: 100%; resize: vertical; }
 .status.banner-warn { position: sticky; z-index: 20; top: 8px; }
 
 /* ---------------------------------------------------------------------------
+   Landing
+   --------------------------------------------------------------------------- */
+
+body.landing-mode { padding: 0 20px 64px; }
+body.landing-mode > .status { display: none; }
+
+.landing { width: min(64rem, 100%); margin: 0 auto; padding-top: clamp(40px, 9vw, 96px); }
+.landing-hero { max-width: 42rem; margin-bottom: 44px; }
+.landing-kicker { margin: 0 0 8px; color: var(--accent); font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.landing-hero h1 { font-size: clamp(2rem, 7vw, 4.2rem); line-height: 1; letter-spacing: -.04em; }
+.landing-hero > p:not(.landing-kicker) { max-width: 36rem; margin: 18px 0 24px; color: var(--ink-soft); font-size: 1.08rem; }
+
+.landing-primary,
+.landing-card,
+.landing-library-card button,
+.landing-library-card a {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.landing-primary { padding: 10px 18px; border-color: var(--accent); background: var(--accent); color: white; font-weight: 700; }
+.landing-primary:hover { filter: brightness(.94); }
+.landing-section { margin-top: 30px; }
+.landing-section h2 { margin-bottom: 10px; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.landing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); gap: 10px; }
+.landing-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 86px; padding: 14px 16px; text-align: left; }
+button.landing-card:hover, .landing-library-card:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(0, 0, 0, .06); }
+.landing-card strong { font-size: 1rem; }
+.landing-card span { color: var(--ink-soft); font-size: .82rem; }
+.landing-card span + span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.landing-library-card { padding: 0; overflow: hidden; }
+.landing-library-card button { width: 100%; flex: 1 1 auto; padding: 14px 16px 10px; border: 0; border-radius: 0; background: none; text-align: left; }
+.landing-library-card button strong, .landing-library-card button span { display: block; }
+.landing-library-card button .landing-open { margin-top: 8px; color: var(--accent); }
+.landing-library-card a { align-self: stretch; margin: 0 12px 12px; padding: 7px 10px; color: var(--accent); text-align: center; }
+.landing-library-card a:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------------------------------------------------------------------------
    Workspace: input on the left, the plan on the right
    --------------------------------------------------------------------------- */
 
@@ -502,6 +544,16 @@ dialog .row button {
 }
 
 dialog .row button:hover { border-color: var(--ink); }
+
+#dialog-library { width: min(42rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+#dialog-library > form > .muted { margin: 0 0 10px; }
+.library-material { margin: 12px 0; padding: 10px 12px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.library-material legend { padding: 0 5px; font-weight: 700; }
+.library-material legend .muted { margin-left: 4px; font-size: .8rem; font-weight: 400; }
+.library-material > label { margin-top: 0; }
+.library-stock-list { margin-top: 8px; border-top: 1px solid var(--line-soft); }
+#dialog-library .library-stock-row { display: flex; align-items: center; gap: 9px; margin: 0; padding: 8px 2px; border-bottom: 1px solid var(--line-soft); color: var(--ink); cursor: pointer; }
+.library-stock-row input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; }
 
 /* A cut line reads as one sentence: the measurement, the edge it is taken
    from, and what it frees. Letting the three wrap into columns of their own

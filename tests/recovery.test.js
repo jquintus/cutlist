@@ -43,7 +43,7 @@ test('a schema 1 recovery copy migrates instead of disappearing on upgrade', () 
   }));
   const recovered = loadRecovery(storage);
   assert.equal(recovered.ok, true);
-  assert.equal(recovered.project.schemaVersion, 2);
+  assert.equal(recovered.project.schemaVersion, 3);
   assert.equal(recovered.project.materials[0].kind, 'sheet');
 });
 

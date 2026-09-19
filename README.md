@@ -23,14 +23,14 @@ one end. **Check every measurement against your own stock before you cut.**
 
 ## Opening a project
 
-Open the site and you get an empty project. Everything else is behind the
-**Menu** in the header. A share link carries the whole project in the URL
-itself, so it opens with no network at all once the page has loaded once.
+Open the site and you get a home page with a new-project button, the projects
+committed to this repository, and the Storage library. A share link carries
+the whole project in the URL itself, so it opens with no network at all once
+the page has loaded once.
 
 Projects:
 
-- **New project** is a plain link to this page with no project in it, so
-  middle-click or cmd-click opens a blank project in a tab of its own.
+- **New project** starts an empty project.
 - **Open project...** lists the projects committed to this repository.
 
 Nothing is saved in your browser. A project lives in the URL, in a file you
@@ -40,10 +40,24 @@ at the saw.
 
 The rest of the menu:
 
+- **Use stock library...** copies selected offcuts from `projects/storage.json`
+  into the current project. The copy is a snapshot, so later library changes
+  cannot change an existing cut plan or share link.
 - **Copy share link** puts the current project in your clipboard as a URL.
 - **Export JSON** saves the project as a file you can keep or mail to someone.
 - **Import JSON** reads such a file back.
 - **Save to GitHub** is a plain link to a prefilled commit page; see below.
+
+The stock library uses the same material and stock rows as any project. Give
+each material a quantity-zero full sheet or board entry to declare what should
+be bought after its offcuts run out; those rows do not appear in the library
+picker. `projects/storage.json` is marked with `library: true`, which keeps it
+in the Storage section instead of the ordinary project list.
+
+For quick inventory edits on a phone, use **Edit inventory** on the home page.
+It opens the protected Storage form in [Pages CMS](https://app.pagescms.org/).
+The form is configured by `.pages.yml`; Pages CMS commits changes to GitHub,
+and the ordinary project-index workflow publishes them with the site.
 
 There is no Print button. Use your browser's own print command (Ctrl/Cmd+P),
 which is also how you get a PDF: choose "Save as PDF" as the destination. The

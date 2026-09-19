@@ -47,10 +47,20 @@ test('schemaVersionSupported names a newer version distinctly', () => {
   assert.match(missing.message, /no schema version/);
 });
 
-test('schema 1 projects migrate to schema 2 sheet materials', () => {
+test('the library marker must be boolean and survives normalization', () => {
+  const bad = validateProject({ ...goodProject(), library: 'yes' });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.field, 'library');
+
+  const library = validateProject({ ...goodProject(), library: true });
+  assert.equal(library.ok, true);
+  assert.equal(library.project.library, true);
+});
+
+test('schema 1 projects migrate to the current sheet-material shape', () => {
   const result = validateProject({ ...goodProject(), schemaVersion: 1 });
   assert.equal(result.ok, true);
-  assert.equal(result.project.schemaVersion, 2);
+  assert.equal(result.project.schemaVersion, 3);
   assert.equal(result.project.materials[0].kind, 'sheet');
   assert.deepEqual(result.project.materials[0].boards, []);
 });
@@ -71,6 +81,14 @@ test('materialsWellFormed accepts a qty zero sheet, which is how a group says wh
     materials: [{ id: 'm1', name: 'Half', sheets: [{ widthIn: 48, lengthIn: 96, qty: 0 }] }],
   });
   assert.equal(result.ok, true);
+});
+
+test('stock quantities must be whole numbers instead of being silently truncated', () => {
+  const project = goodProject();
+  project.materials[0].sheets[0].qty = 0.5;
+  const result = validateProject(project);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /whole number/);
 });
 
 test('materialsWellFormed accepts board stock and a qty zero buy spec', () => {
