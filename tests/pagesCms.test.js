@@ -16,14 +16,25 @@ test('Pages CMS exposes Storage as a protected structured JSON file', async () =
   assert.match(config, /collection: wood_species/);
   assert.match(config, /collection: stock_thicknesses/);
   assert.match(config, /collection: board_widths/);
-  assert.match(config, /value: "\{primary\}"/);
-  assert.equal(config.match(/value: "\{fields\.label\}"/g)?.length, 3);
+  assert.match(config, /name: species[\s\S]*collection: wood_species\n\s+search: "label"\n\s+value: "\{fields\.label\}"/);
+  assert.equal(config.match(/value: "\{fields\.label\}"/g)?.length, 4);
   assert.match(config, /summary: "\{species\}\{name\} \{thicknessIn\}\{summarySeparator\}\{widthIn\}"/);
   assert.equal(config.match(/name: summarySeparator/g)?.length, 2);
   assert.equal(config.match(/hidden: true/g)?.length, 6);
   assert.equal(config.match(/generate: false/g)?.length, 4);
   assert.equal(config.match(/step: 0\.001/g)?.length, 3);
   assert.equal(config.match(/step: 1$/gm)?.length, 2);
+});
+
+test('species references use a content field that does not collide with entry names', async () => {
+  const dir = new URL('../inventory/species/', import.meta.url);
+  const files = (await readdir(dir)).filter((name) => name.endsWith('.json'));
+  for (const file of files) {
+    const entry = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
+    assert.equal(typeof entry.label, 'string');
+    assert.ok(entry.label.length > 0);
+    assert.equal(Object.hasOwn(entry, 'name'), false);
+  }
 });
 
 test('inventory reference filenames sort dimensions from smallest to largest', async () => {

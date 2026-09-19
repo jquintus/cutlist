@@ -113,9 +113,9 @@ content:
                 required: true
                 options:
                   collection: wood_species
-                  search: "name"
-                  value: "{primary}"
-                  label: "{primary}"
+                  search: "label"
+                  value: "{fields.label}"
+                  label: "{fields.label}"
               - name: thicknessIn
                 label: Thickness (inches)
                 type: reference
@@ -178,16 +178,16 @@ content:
         type: collection
         path: inventory/species
         format: json
-        filename: "{primary}.json"
+        filename: "{label}.json"
         view:
-          primary: name
-          search: [name]
-          sort: [name]
+          primary: label
+          search: [label]
+          sort: [label]
           default:
-            sort: name
+            sort: label
             order: asc
         fields:
-          - name: name
+          - name: label
             label: Species
             type: string
             required: true
