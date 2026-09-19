@@ -48,11 +48,12 @@ The rest of the menu:
 - **Import JSON** reads such a file back.
 - **Save to GitHub** is a plain link to a prefilled commit page; see below.
 
-The stock library uses the same material and stock rows as any project. Give
-each material a quantity-zero full sheet or board entry to declare what should
-be bought after its offcuts run out; those rows do not appear in the library
-picker. `projects/storage.json` is marked with `library: true`, which keeps it
-in the Storage section instead of the ordinary project list.
+The stock library uses the same material and stock rows as any project. Enter
+only the sheets and boards physically in the shop. When imported stock runs
+out, a project uses a standard 48 x 96 sheet or 8 ft board as its initial
+purchase size; it can be changed in that project. `projects/storage.json` is
+marked with `library: true`, which keeps it in the Storage section instead of
+the ordinary project list.
 
 For quick inventory edits on a phone, use **Edit inventory** on the home page.
 It opens the protected Storage form in [Pages CMS](https://app.pagescms.org/).

@@ -120,14 +120,12 @@ test('projects/index.json lists exactly the project files beside it', async () =
   assert.ok(index.projects.filter((entry) => entry.file !== 'storage.json').every((entry) => entry.library === false));
 });
 
-test('storage.json is a valid library with an explicit purchase size for every material', async () => {
+test('storage.json contains only physical inventory', async () => {
   const storage = await loadSeed('storage.json');
   assert.equal(storage.library, true);
   for (const material of storage.materials) {
     const physical = material.sheets.filter((sheet) => sheet.qty > 0);
     assert.ok(physical.length > 0, `${material.name} has no physical stock`);
-    const purchase = material.sheets.filter((sheet) => sheet.qty === 0);
-    assert.equal(purchase.length, 1, `${material.name} needs one purchase size`);
-    assert.deepEqual([purchase[0].widthIn, purchase[0].lengthIn], [48, 96]);
+    assert.ok(material.sheets.every((sheet) => sheet.qty > 0), `${material.name} contains non-inventory stock`);
   }
 });

@@ -1,10 +1,12 @@
+# Storage is also a cutlist project. Preserve the project-only keys that are
+# intentionally absent from this inventory-focused form.
 settings:
   content:
     merge: true
 
 content:
   - name: storage
-    label: Storage
+    label: Shop inventory
     type: file
     path: projects/storage.json
     format: json
@@ -13,126 +15,131 @@ content:
       rename: false
       delete: false
     fields:
-      - name: schemaVersion
-        label: Schema version
-        type: number
-        readonly: true
-      - name: library
-        label: Stock library
-        type: boolean
-        readonly: true
-      - name: name
-        label: Name
-        type: string
-        required: true
-      - name: date
-        label: Updated
-        type: date
       - name: notes
-        label: Notes
+        label: Storage notes
         type: text
-      - name: displaySystem
-        label: Display system
-        type: select
-        required: true
-        options:
-          values:
-            - name: imperial
-              label: Imperial
-            - name: metric
-              label: Metric
-      - name: params
-        label: Cut settings
-        type: object
-        fields:
-          - name: kerfIn
-            label: Kerf (inches)
-            type: number
-            options:
-              min: 0
-          - name: edgeTrimIn
-            label: Edge trim (inches)
-            type: number
-            options:
-              min: 0
       - name: materials
-        label: Materials
-        type: object
+        label: Stock
+        type: block
+        blockKey: kind
         list:
           collapsible:
             collapsed: true
-            summary: "{name} ({kind})"
-        fields:
-          - name: id
-            label: ID
-            type: uuid
-            options:
-              editable: false
-              generate: false
-          - name: kind
-            label: Stock type
-            type: select
-            required: true
-            hidden: true
-            default: sheet
-            options:
-              values:
-                - name: sheet
-                  label: Sheet goods
-          - name: name
-            label: Material
-            type: string
-            required: true
-          - name: thicknessIn
-            label: Thickness (inches)
-            type: number
-            options:
-              min: 0.001
-          - name: thicknessLabel
-            label: Thickness label
-            type: string
-          - name: note
-            label: Notes
-            type: text
-          - name: color
-            label: Color
-            type: string
-            description: Hex color used in cut diagrams.
-          - name: sheets
-            label: Sheets
-            type: object
-            list:
-              collapsible:
-                collapsed: true
-                summary: "{label}: {widthIn} x {lengthIn} in (qty {qty})"
+            summary: "{name}"
+        blocks:
+          - name: sheet
+            label: Sheet goods
             fields:
               - name: id
-                label: ID
                 type: uuid
+                hidden: true
                 options:
-                  editable: false
                   generate: false
-              - name: label
-                label: Label
+              - name: name
+                label: Material
                 type: string
-              - name: widthIn
-                label: Width (inches)
+                required: true
+                description: Examples include 1/2 in plywood and 3/4 in MDF.
+              - name: thicknessIn
+                label: Thickness (inches)
                 type: number
                 required: true
                 options:
                   min: 0.001
-              - name: lengthIn
-                label: Length (inches)
-                type: number
-                required: true
-                options:
-                  min: 0.001
-              - name: qty
-                label: Quantity
-                type: number
-                required: true
-                options:
-                  min: 0
               - name: note
                 label: Notes
                 type: text
+              - name: sheets
+                label: Pieces on hand
+                type: object
+                list:
+                  min: 1
+                  collapsible:
+                    collapsed: true
+                    summary: "{widthIn} x {lengthIn} in — qty {qty}"
+                fields:
+                  - name: id
+                    type: uuid
+                    hidden: true
+                    options:
+                      generate: false
+                  - name: widthIn
+                    label: Width (inches)
+                    type: number
+                    required: true
+                    options:
+                      min: 0.001
+                  - name: lengthIn
+                    label: Length (inches)
+                    type: number
+                    required: true
+                    options:
+                      min: 0.001
+                  - name: qty
+                    label: Quantity
+                    type: number
+                    required: true
+                    default: 1
+                    options:
+                      min: 1
+                  - name: note
+                    label: Notes
+                    type: text
+          - name: board
+            label: Boards
+            fields:
+              - name: id
+                type: uuid
+                hidden: true
+                options:
+                  generate: false
+              - name: name
+                label: Material
+                type: string
+                required: true
+                description: Examples include cherry and construction pine.
+              - name: thicknessIn
+                label: Thickness (inches)
+                type: number
+                required: true
+                options:
+                  min: 0.001
+              - name: widthIn
+                label: Board width (inches)
+                type: number
+                required: true
+                options:
+                  min: 0.001
+              - name: note
+                label: Notes
+                type: text
+              - name: boards
+                label: Boards on hand
+                type: object
+                list:
+                  min: 1
+                  collapsible:
+                    collapsed: true
+                    summary: "{lengthIn} in — qty {qty}"
+                fields:
+                  - name: id
+                    type: uuid
+                    hidden: true
+                    options:
+                      generate: false
+                  - name: lengthIn
+                    label: Length (inches)
+                    type: number
+                    required: true
+                    options:
+                      min: 0.001
+                  - name: qty
+                    label: Quantity
+                    type: number
+                    required: true
+                    default: 1
+                    options:
+                      min: 1
+                  - name: note
+                    label: Notes
+                    type: text

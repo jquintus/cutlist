@@ -7,8 +7,10 @@ test('Pages CMS exposes Storage as a protected structured JSON file', async () =
   assert.match(config, /content:\n\s+merge: true/);
   assert.match(config, /type: file\n\s+path: projects\/storage\.json\n\s+format: json/);
   assert.match(config, /operations:\n\s+create: false\n\s+rename: false\n\s+delete: false/);
-  assert.match(config, /name: materials[\s\S]*name: sheets/);
-  assert.doesNotMatch(config, /name: boards/);
-  assert.match(config, /name: id\n\s+label: ID\n\s+type: uuid/);
-  assert.equal(config.match(/generate: false/g)?.length, 2);
+  assert.match(config, /name: materials\n\s+label: Stock\n\s+type: block\n\s+blockKey: kind/);
+  assert.match(config, /name: sheet\n\s+label: Sheet goods[\s\S]*name: sheets/);
+  assert.match(config, /name: board\n\s+label: Boards[\s\S]*name: boards/);
+  assert.doesNotMatch(config, /name: displaySystem|name: thicknessLabel|name: color|name: params/);
+  assert.equal(config.match(/hidden: true/g)?.length, 4);
+  assert.equal(config.match(/generate: false/g)?.length, 4);
 });

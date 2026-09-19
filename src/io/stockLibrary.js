@@ -2,6 +2,8 @@
 // library afterward. The copied dimensions are the plan's permanent snapshot;
 // inventoryRef is only provenance for a future reconciliation workflow.
 
+import { thicknessLabelFor } from '../units.js';
+
 const EPS = 1e-9;
 
 function stockFor(material) {
@@ -44,19 +46,25 @@ function uniqueId(prefix, used) {
   return candidate;
 }
 
-function newMaterialFrom(source, id) {
+function newMaterialFrom(source, id, system) {
   return {
     id,
     name: source.name,
     kind: source.kind,
     thicknessIn: source.thicknessIn,
-    thicknessLabel: source.thicknessLabel,
+    thicknessLabel: source.thicknessLabel || thicknessLabelFor(source.thicknessIn, system),
     widthIn: source.kind === 'board' ? source.widthIn : 0,
     note: source.note,
     color: source.color,
     sheets: [],
     boards: [],
   };
+}
+
+function defaultPurchaseSpec(material) {
+  return material.kind === 'board'
+    ? { label: '8 ft', lengthIn: 96, qty: 0, note: 'Standard purchase size' }
+    : { label: '48 x 96', widthIn: 48, lengthIn: 96, qty: 0, note: 'Standard purchase size' };
 }
 
 /**
@@ -95,25 +103,18 @@ export function mergeLibraryStock(project, library, selected, targets, {
       return { ok: false, message: `"${sourceMaterial.name}" cannot be added to that material group.` };
     }
     const purchaseSpecs = stockFor(sourceMaterial).filter((stock) => stock.qty === 0);
-    if ((target === undefined || !stockFor(target).some((stock) => stock.qty === 0))
-        && purchaseSpecs.length === 0) {
-      return {
-        ok: false,
-        message: `"${sourceMaterial.name}" needs a quantity-zero purchase size before its offcuts can be imported.`,
-      };
-    }
     if (target === undefined) {
       target = created.get(sourceMaterial.id);
       if (target === undefined) {
         const id = uniqueId('m', usedMaterialIds);
-        target = newMaterialFrom(sourceMaterial, id);
+        target = newMaterialFrom(sourceMaterial, id, result.displaySystem);
         result.materials.push(target);
         created.set(sourceMaterial.id, target);
 
         // A quantity-zero row is the declared size to buy when the imported
         // offcuts run out. Without it, the largest offcut becomes the buy size.
         const targetStock = stockFor(target);
-        for (const spec of purchaseSpecs) {
+        for (const spec of purchaseSpecs.length > 0 ? purchaseSpecs : [defaultPurchaseSpec(sourceMaterial)]) {
           targetStock.push({ ...structuredClone(spec), id: uniqueId(`${target.id}${sourceMaterial.kind === 'board' ? 'b' : 's'}`, usedStockIds) });
         }
       }
@@ -121,7 +122,8 @@ export function mergeLibraryStock(project, library, selected, targets, {
 
     const targetStock = stockFor(target);
     if (!targetStock.some((stock) => stock.qty === 0)) {
-      for (const spec of stockFor(sourceMaterial).filter((stock) => stock.qty === 0)) {
+      const specs = purchaseSpecs.length > 0 ? purchaseSpecs : [defaultPurchaseSpec(sourceMaterial)];
+      for (const spec of specs) {
         targetStock.push({ ...structuredClone(spec), id: uniqueId(`${target.id}${sourceMaterial.kind === 'board' ? 'b' : 's'}`, usedStockIds) });
       }
     }

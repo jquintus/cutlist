@@ -69,7 +69,7 @@ test('an existing compatible group receives stock and a missing purchase size', 
   assert.equal(result.project.materials[0].sheets[1].id === 'offcut-b', false);
 });
 
-test('a new material refuses offcuts when the library has no purchase size', () => {
+test('a new material gets a standard purchase size when inventory has none', () => {
   const incomplete = project([{
     id: 'scrap', kind: 'sheet', name: 'Scrap', thicknessIn: 0.25,
     sheets: [{ id: 'only', widthIn: 10, lengthIn: 12, qty: 1 }],
@@ -77,11 +77,14 @@ test('a new material refuses offcuts when the library has no purchase size', () 
   const result = mergeLibraryStock(project(), incomplete, [
     { materialId: 'scrap', stockId: 'only' },
   ], { scrap: '' });
-  assert.equal(result.ok, false);
-  assert.match(result.message, /quantity-zero purchase size/);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.project.materials[0].sheets.map((sheet) => (
+    [sheet.widthIn, sheet.lengthIn, sheet.qty]
+  )), [[48, 96, 0], [10, 12, 1]]);
+  assert.equal(result.project.materials[0].thicknessLabel, '1/4 in');
 });
 
-test('an existing material also needs a declared purchase size', () => {
+test('an existing material gets a standard purchase size when inventory has none', () => {
   const target = project([{
     id: 'mine', kind: 'sheet', name: 'My ply', thicknessIn: 0.25, sheets: [],
   }]);
@@ -92,8 +95,24 @@ test('an existing material also needs a declared purchase size', () => {
   const result = mergeLibraryStock(target, incomplete, [
     { materialId: 'scrap', stockId: 'only' },
   ], { scrap: 'mine' });
-  assert.equal(result.ok, false);
-  assert.match(result.message, /quantity-zero purchase size/);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.project.materials[0].sheets.map((sheet) => (
+    [sheet.widthIn, sheet.lengthIn, sheet.qty]
+  )), [[48, 96, 0], [10, 12, 1]]);
+});
+
+test('board inventory gets a standard 8 ft purchase size when imported', () => {
+  const inventory = project([{
+    id: 'cherry', kind: 'board', name: 'Cherry', thicknessIn: 0.75, widthIn: 5.5,
+    boards: [{ id: 'short', lengthIn: 34, qty: 1 }],
+  }]);
+  const result = mergeLibraryStock(project(), inventory, [
+    { materialId: 'cherry', stockId: 'short' },
+  ], { cherry: '' });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.project.materials[0].boards.map((board) => (
+    [board.lengthIn, board.qty]
+  )), [[96, 0], [34, 1]]);
 });
 
 test('the same physical library stock cannot be added twice', () => {
