@@ -28,6 +28,15 @@ function buyBanner(materialPlan) {
   return `<p class="banner-buy">Shopping list: buy ${materialPlan.extraSheetsNeeded} more ${escapeHtml(widthIn)} x ${escapeHtml(lengthIn)} ${sheetWord} of ${escapeHtml(materialPlan.name)}.</p>`;
 }
 
+function purchaseUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? value : '';
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Everything this project needs bought, in one place.
  *
@@ -38,14 +47,28 @@ function buyBanner(materialPlan) {
 function shoppingListSection(plan, system, ticked = new Set(), standalone = false) {
   if (plan.shoppingList.length === 0) return '';
   const items = plan.shoppingList.map((entry, index) => {
-    const thickness = entry.thicknessLabel ? ` (${escapeHtml(entry.thicknessLabel)})` : '';
-    const sheetWord = entry.qty === 1 ? 'sheet' : 'sheets';
-    const text = `${escapeHtml(entry.qty)} ${sheetWord} of ${escapeHtml(entry.name)}${thickness}`
-      + `, ${escapeHtml(formatLength(entry.widthIn, system))}`
-      + ` x ${escapeHtml(formatLength(entry.lengthIn, system))}`;
-    // Keyed to the material rather than to its place in the list, so a tick
-    // made in the aisle survives an edit to the project on the way there.
-    const id = `buy:${entry.materialId ?? index}`;
+    let text;
+    if (entry.kind === 'supply') {
+      const supplyName = entry.name || 'Unnamed';
+      const details = [`${escapeHtml(entry.qty)} needed`];
+      if (entry.packQty > 1) details.push(`${escapeHtml(entry.packQty)} per item`);
+      if (entry.note) details.push(escapeHtml(entry.note));
+      const url = purchaseUrl(entry.url);
+      const name = url
+        ? `<a href="${escapeHtml(url)}">${escapeHtml(supplyName)}</a>`
+        : escapeHtml(supplyName);
+      text = `${escapeHtml(entry.buyQty)} &times; ${name} (${details.join('; ')})`;
+    } else {
+      const thickness = entry.thicknessLabel ? ` (${escapeHtml(entry.thicknessLabel)})` : '';
+      const sheetWord = entry.qty === 1 ? 'sheet' : 'sheets';
+      text = `${escapeHtml(entry.qty)} ${sheetWord} of ${escapeHtml(entry.name)}${thickness}`
+        + `, ${escapeHtml(formatLength(entry.widthIn, system))}`
+        + ` x ${escapeHtml(formatLength(entry.lengthIn, system))}`;
+    }
+    // Keyed to the material or supply rather than to its place in the list, so
+    // a tick made in the aisle survives an edit or reorder on the way there.
+    const itemId = entry.kind === 'supply' ? `supply:${entry.id}` : (entry.materialId ?? index);
+    const id = `buy:${itemId}`;
     const done = ticked.has(id);
     return `<li${done ? ' class="done"' : ''}><label>`
       + `<input type="checkbox" data-tick="${escapeHtml(id)}"${done ? ' checked' : ''} /> ${text}</label></li>`;
@@ -208,6 +231,7 @@ export function renderResults(plan, view = {}) {
   const anySheets = plan.materials.some((materialPlan) => materialPlan.sheets.length > 0);
   if (!anySheets) {
     return notesSection(plan) + warningsSection(plan)
+      + shoppingListSection(plan, system, view.ticked ?? new Set())
       + '<p class="muted">Add a material group and some parts to see a layout.</p>';
   }
 

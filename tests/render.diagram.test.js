@@ -15,7 +15,7 @@ import { sheetSvg } from '../src/ui/renderDiagram.js';
 import { sheetKey } from '../src/ui/renderTable.js';
 
 async function bothPlan() {
-  const text = await readFile(new URL('../projects/omnisled-both.json', import.meta.url), 'utf8');
+  const text = await readFile(new URL('../projects/omnisled-full-and-mini.json', import.meta.url), 'utf8');
   const checked = validateProject(JSON.parse(text));
   assert.equal(checked.ok, true);
   return planProject(checked.project);

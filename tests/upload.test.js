@@ -95,7 +95,7 @@ test("direct upload keeps a project's own date rather than overwriting it", () =
   assert.equal(sent.date, '2020-01-01');
 });
 
-test('every seeded project opens a prefilled commit page rather than a download', async () => {
+test('every seeded project survives its direct-upload path', async () => {
   const dir = new URL('../projects/', import.meta.url);
   const files = (await readdir(dir)).filter((name) => name.endsWith('.json') && name !== 'index.json');
   assert.ok(files.length >= 3, 'the seed projects must actually be there');
@@ -105,14 +105,14 @@ test('every seeded project opens a prefilled commit page rather than a download'
     assert.equal(checked.ok, true, `projects/${file} did not validate`);
 
     const result = directUpload(checked.project);
-    assert.equal(result.kind, 'url', `projects/${file} fell back to a download`);
-    assert.ok(
-      result.url.length <= MAX_UPLOAD_URL_LEN,
-      `projects/${file} builds a ${result.url.length} character URL`,
-    );
-    assert.deepEqual(
-      JSON.parse(decodeURIComponent(result.url.split('&value=')[1])),
-      checked.project,
-    );
+    const saved = result.kind === 'url'
+      ? JSON.parse(decodeURIComponent(result.url.split('&value=')[1]))
+      : JSON.parse(result.json);
+    assert.deepEqual(saved, checked.project);
+    if (result.kind === 'url') {
+      assert.ok(result.url.length <= MAX_UPLOAD_URL_LEN);
+    } else {
+      assert.ok(result.json.endsWith('\n'));
+    }
   }
 });

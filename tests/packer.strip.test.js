@@ -22,7 +22,7 @@ async function loadSeed(file) {
 }
 
 test('omnisled-both gangs its 3/4 in parts onto one strip', async () => {
-  const plan = planProject(await loadSeed('omnisled-both.json'));
+  const plan = planProject(await loadSeed('omnisled-full-and-mini.json'));
   const group = plan.materials.find((material) => material.name.includes('3/4 in'));
   assert.ok(group, 'no 3/4 in group');
 
@@ -57,7 +57,7 @@ test('equal-width parts whose combined length fits one sheet land on a single st
 });
 
 test('packing the same input twice gives the same layout', async () => {
-  const project = await loadSeed('omnisled-both.json');
+  const project = await loadSeed('omnisled-full-and-mini.json');
   const pack = () => project.materials.map((material) => packMaterial({
     material,
     parts: project.parts,

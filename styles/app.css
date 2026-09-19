@@ -144,9 +144,11 @@ textarea { width: 100%; resize: vertical; }
 }
 
 .menu-body button:hover, .menu-body a:hover { background: var(--accent-soft); }
+.menu-body a[aria-disabled="true"] { opacity: .45; cursor: default; }
 
 .status { margin: 8px 0 0; color: var(--ink-soft); }
 .status:empty { display: none; }
+.status.banner-warn { position: sticky; z-index: 20; top: 8px; }
 
 /* ---------------------------------------------------------------------------
    Workspace: input on the left, the plan on the right
@@ -600,11 +602,46 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
 .add-row:disabled { opacity: .45; cursor: default; }
 .add-row:disabled:hover { border-color: var(--line); color: var(--ink-soft); }
 
-/* A table with seven columns will not always fit the column it sits in. It
-   scrolls sideways on its own rather than pushing its last cells out of the
-   page, which is what put stray remove buttons over the plan beside it. */
-.section .grid-table { display: block; width: 100%; overflow-x: auto; }
-.section .grid-table > thead, .section .grid-table > tbody { display: table; width: 100%; table-layout: auto; }
+/* A wide entry table scrolls inside its section. The header and body remain one
+   table, so every heading always uses the exact same columns as its rows. */
+.table-scroll { width: 100%; overflow-x: auto; }
+.section .grid-table { display: table; width: 100%; min-width: 100%; table-layout: auto; }
+
+/* Display and edit mode use the exact same grid template. Unlike table auto
+   sizing, content cannot make a row disagree with its headings. */
+.supply-grid { min-width: 54rem; }
+.supply-grid-row {
+  display: grid;
+  grid-template-columns: 1.6rem 2rem minmax(8rem, 1.2fr) 4rem 5rem 3.5rem 6rem minmax(7rem, 1fr) minmax(8rem, 1.2fr) 4.5rem;
+  column-gap: 4px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+.supply-grid-row > * { min-width: 0; padding: 3px 6px; }
+.supply-grid-head {
+  border-bottom-color: var(--line);
+  color: var(--ink-soft);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.supply-grid .num { text-align: right; }
+.supply-grid input[type="text"],
+.supply-grid input[type="number"],
+.supply-grid input[type="url"] { width: 100%; min-width: 0; }
+.supply-grid input[type="number"] { text-align: right; }
+.supply-grid input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
+.supply-buy output { font-variant-numeric: tabular-nums; font-weight: 600; }
+.supply-display { min-height: 34px; }
+.supply-name { font-weight: 600; }
+.supply-editable { cursor: text; }
+.supply-editable:hover { background: var(--accent-soft); }
+.supply-domain { display: block; overflow: hidden; color: var(--accent); text-overflow: ellipsis; white-space: nowrap; }
+.supply-actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.supply-edit-action { padding: 2px 4px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.supply-edit-action:hover { text-decoration: underline; }
 
 /* Selecting a step clears the picture down to that one cut.
  *
@@ -636,4 +673,3 @@ body.focus-sheet .shopping-list li { padding: 8px 0; border-bottom: 1px solid va
     padding-right: 6px;
   }
 }
-

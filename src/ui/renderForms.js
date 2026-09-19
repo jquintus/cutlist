@@ -29,6 +29,21 @@ function textInput({ key, value, type = 'text', placeholder = '' }) {
     + ` value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" />`;
 }
 
+function safeHttpUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? value : '';
+  } catch {
+    return '';
+  }
+}
+
+function displayPrice(value) {
+  const price = String(value ?? '').trim();
+  if (price === '') return '&mdash;';
+  return escapeHtml(price.startsWith('$') ? price : `$${price}`);
+}
+
 /**
  * A field that holds a measurement or a count.
  *
@@ -66,7 +81,7 @@ function stepperInput({ key, value, step = 0.125, keypad = 'decimal' }) {
 
 function metaPanel(project, open) {
   return `<details class="section" data-panel="meta"${open.meta ? ' open' : ''}><summary><h2>Project</h2></summary>
-  <table class="grid-table"><tbody>
+  <div class="table-scroll"><table class="grid-table"><tbody>
     <tr><th scope="row">Name</th><td colspan="3">${textInput({ key: 'name', value: project.name })}</td></tr>
     <tr><th scope="row">Date</th><td>${textInput({ key: 'date', value: project.date, type: 'date' })}</td>
         <th scope="row">Units</th><td><select name="displaySystem" data-focus-key="displaySystem" data-field="displaySystem">
@@ -76,7 +91,7 @@ function metaPanel(project, open) {
     <tr><th scope="row">Blade kerf</th><td class="num">${stepperInput({ key: 'params.kerfIn', value: project.params.kerfIn, step: 0.0625 })}</td>
         <th scope="row">Edge trim</th><td class="num">${stepperInput({ key: 'params.edgeTrimIn', value: project.params.edgeTrimIn })}</td></tr>
     <tr><th scope="row">Notes</th><td colspan="3"><textarea rows="2" name="notes" data-focus-key="notes" data-field="notes">${escapeHtml(project.notes)}</textarea></td></tr>
-  </tbody></table>
+  </tbody></table></div>
 </details>`;
 }
 
@@ -124,12 +139,16 @@ function thicknessControl(material, index, uiState, bare = false) {
  * first typing is a real cost. Disabled at the ends rather than hidden, so the
  * column never changes width as rows move.
  */
-function reorderCell(action, index, count, extra = '') {
+function reorderButtons(action, index, count, extra = '') {
   const up = `<button type="button" class="row-move" data-action="${action}" data-dir="-1" ${extra} data-index="${index}"`
     + `${index === 0 ? ' disabled' : ''} aria-label="Move up" title="Move up">&#9650;</button>`;
   const down = `<button type="button" class="row-move" data-action="${action}" data-dir="1" ${extra} data-index="${index}"`
     + `${index === count - 1 ? ' disabled' : ''} aria-label="Move down" title="Move down">&#9660;</button>`;
-  return `<td class="mid move"><span class="moves">${up}${down}</span></td>`;
+  return `<span class="moves">${up}${down}</span>`;
+}
+
+function reorderCell(action, index, count, extra = '') {
+  return `<td class="mid move">${reorderButtons(action, index, count, extra)}</td>`;
 }
 
 /**
@@ -189,14 +208,14 @@ function materialsPanel(project, uiState, open, sheetSort) {
   const noMaterials = project.materials.length === 0;
 
   return `<details class="section" data-panel="materials"${open.materials ? ' open' : ''}><summary><h2>Material</h2></summary>
-    <table class="grid-table">
+    <div class="table-scroll"><table class="grid-table">
       <thead><tr><th class="mid"></th><th>Name</th><th>Thickness</th><th></th></tr></thead>
       <tbody>${materials}</tbody>
-    </table>
+    </table></div>
     <button type="button" class="add-row" data-action="add-material">+ Add material</button>
 
     <h3 class="sub-head">Sheets on hand</h3>
-    <table class="grid-table">
+    <div class="table-scroll"><table class="grid-table">
       <thead><tr>
         <th class="mid"></th>
         ${sortHeader('materialId', 'Material', sheetSort, '', 'sort-sheets')}
@@ -207,7 +226,7 @@ function materialsPanel(project, uiState, open, sheetSort) {
         <th>Note</th><th></th>
       </tr></thead>
       <tbody>${sheets}</tbody>
-    </table>
+    </table></div>
     <button type="button" class="add-row" data-action="add-sheet"${noMaterials ? ' disabled title="Add a material first"' : ''}>+ Add sheet</button>
   </details>`;
 }
@@ -253,7 +272,7 @@ function partsPanel(project, sort, open) {
   </tr>`).join('');
 
   return `<details class="section" data-panel="parts"${open.parts ? ' open' : ''}><summary><h2>Parts</h2></summary>
-    <table class="grid-table">
+    <div class="table-scroll"><table class="grid-table">
       <thead><tr>
         <th class="mid"></th>
         ${sortHeader('name', 'Name', sort)}
@@ -264,8 +283,60 @@ function partsPanel(project, sort, open) {
         <th class="mid" title="Grain must run along the length">Grain</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table>
+    </table></div>
     <button type="button" class="add-row" data-action="add-part">+ Add part</button>
+  </details>`;
+}
+
+function suppliesPanel(project, open, uiState) {
+  const rows = project.supplies.map((supply, index) => {
+    const url = safeHttpUrl(supply.url);
+    const buyQty = Math.ceil(supply.qty / supply.packQty);
+    const editing = uiState?.get(supply.id)?.editing === true;
+    const checkbox = `<input type="checkbox" name="supplies.${index}.onHand" data-focus-key="supplies.${index}.onHand" data-field="supplies.${index}.onHand"${supply.onHand ? ' checked' : ''} aria-label="Already have ${escapeHtml(supply.name || 'this supply')}" />`;
+    const reorder = `<div class="mid move" role="cell">${reorderButtons('move-supply', index, project.supplies.length)}</div>`;
+    const remove = `<button type="button" class="row-remove" data-action="remove-supply" data-supply="${index}" data-supply-id="${escapeHtml(supply.id)}" title="Remove this supply" aria-label="Remove this supply">&times;</button>`;
+
+    if (!editing) {
+      const domain = url ? new URL(url).hostname.replace(/^www\./, '') : '';
+      const link = url
+        ? `<a class="supply-domain" href="${escapeHtml(url)}" title="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(domain)}</a>`
+        : '&mdash;';
+      const edit = `data-action="edit-supply" data-supply-id="${escapeHtml(supply.id)}"`;
+      return `<div class="supply-grid-row supply-display" role="row">
+        ${reorder}
+        <div class="mid" role="cell">${checkbox}</div>
+        <div class="supply-name supply-editable${supply.name ? '' : ' muted'}" role="cell" ${edit}>${escapeHtml(supply.name || 'Unnamed')}</div>
+        <div class="num supply-editable" role="cell" ${edit}>${escapeHtml(supply.qty)}</div>
+        <div class="num supply-editable" role="cell" ${edit}>${escapeHtml(supply.packQty)}</div>
+        <div class="num supply-buy supply-editable" role="cell" ${edit}><output>${escapeHtml(buyQty)}</output></div>
+        <div class="supply-editable" role="cell" ${edit}>${displayPrice(supply.price)}</div>
+        <div class="supply-editable" role="cell" ${edit}>${escapeHtml(supply.note) || '&mdash;'}</div>
+        <div role="cell">${link}</div>
+        <div role="cell"><span class="supply-actions"><button type="button" class="supply-edit-action" data-action="edit-supply" data-supply-id="${escapeHtml(supply.id)}">Edit</button>${remove}</span></div>
+      </div>`;
+    }
+
+    return `<div class="supply-grid-row supply-edit" role="row" data-supply-id="${escapeHtml(supply.id)}">
+      ${reorder}
+      <div class="mid" role="cell">${checkbox}</div>
+      <div role="cell">${textInput({ key: `supplies.${index}.name`, value: supply.name, placeholder: 'Supply name' })}</div>
+      <div class="qty num" role="cell">${numericInput({ key: `supplies.${index}.qty`, value: supply.qty, keypad: 'numeric' })}</div>
+      <div class="qty num" role="cell">${numericInput({ key: `supplies.${index}.packQty`, value: supply.packQty, keypad: 'numeric' })}</div>
+      <div class="num supply-buy" role="cell"><output>${escapeHtml(buyQty)}</output></div>
+      <div role="cell">${textInput({ key: `supplies.${index}.price`, value: supply.price })}</div>
+      <div role="cell">${textInput({ key: `supplies.${index}.note`, value: supply.note })}</div>
+      <div role="cell">${textInput({ key: `supplies.${index}.url`, value: supply.url, type: 'url' })}</div>
+      <div role="cell"><span class="supply-actions"><button type="button" class="supply-edit-action" data-action="finish-supply-edit" data-supply-id="${escapeHtml(supply.id)}">Done</button>${remove}</span></div>
+    </div>`;
+  }).join('');
+
+  return `<details class="section" data-panel="supplies"${open.supplies ? ' open' : ''}><summary><h2>Supplies</h2></summary>
+    <div class="table-scroll"><div class="supply-grid" role="table">
+      <div class="supply-grid-row supply-grid-head" role="row"><div role="columnheader"></div><div role="columnheader"></div><div role="columnheader">Name</div><div class="num" role="columnheader">Need</div><div class="num" role="columnheader">Per pack</div><div class="num" role="columnheader">Buy</div><div role="columnheader">Price each</div><div role="columnheader">Note</div><div role="columnheader">Link</div><div role="columnheader"></div></div>
+      ${rows}
+    </div></div>
+    <button type="button" class="add-row" data-action="add-supply">+ Add supply</button>
   </details>`;
 }
 
@@ -275,7 +346,8 @@ function partsPanel(project, sort, open) {
  * once and then rarely looked at, and it was taking the top of the column to
  * say nothing.
  */
-export function renderForms(project, uiState, sort = null, open = { meta: false, materials: true, parts: true }, sheetSort = null) {
+export function renderForms(project, uiState, sort = null, open = { meta: false, materials: true, parts: true, supplies: true }, sheetSort = null) {
   return metaPanel(project, open)
-    + materialsPanel(project, uiState, open, sheetSort) + partsPanel(project, sort, open);
+    + materialsPanel(project, uiState, open, sheetSort) + partsPanel(project, sort, open)
+    + suppliesPanel(project, open, uiState);
 }

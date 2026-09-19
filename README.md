@@ -5,8 +5,8 @@ phone at the saw, or print and tape to the wall.
 
 Give it what plywood you have and what parts you need. It gives you back a
 to-scale color diagram of each sheet, an ordered list of rips and crosscuts
-with a measurement for every step, and a shopping list of the sheets you still
-need to buy.
+with a measurement for every step, and one shopping list for sheets and other
+project supplies you still need to buy.
 
 It is a static site. There is no build step, no server, and no account.
 
@@ -99,12 +99,8 @@ usable sheet, a blade width between neighbors, every layout cuttable edge to
 edge, and grain-locked parts never turned. The site runs without the tests;
 the tests are how the layout is known to be safe to cut.
 
-## Not in this round
+## Running locally
 
-Deferred to round 2, on purpose:
-
-- Linear board stock. Anything milled from a board rather than cut from a
-  sheet, such as the hardwood miter bars, is carried in the project file and
-  listed as "not planned in this version" rather than laid out.
-- The non-wood materials list: hardware, glue, finish.
-- Any cost or price estimate.
+```bash
+python3 -m http.server 9180
+```

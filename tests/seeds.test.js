@@ -12,7 +12,7 @@ import { sheetSvg } from '../src/ui/renderDiagram.js';
 import { cutListRows, cutListHtml } from '../src/ui/renderTable.js';
 import { encodeProject, decodeHash } from '../src/share/codec.js';
 
-const SEEDS = ['omnisled-full-size.json', 'omnisled-mini.json', 'omnisled-both.json'];
+const SEEDS = ['demo-omnisled-full-size.json', 'demo-omnisled-mini.json', 'omnisled-full-and-mini.json'];
 
 async function loadSeed(file) {
   const text = await readFile(new URL(`../projects/${file}`, import.meta.url), 'utf8');
@@ -96,14 +96,14 @@ for (const file of SEEDS) {
   });
 }
 
-test('omnisled-both carries every part from both sleds under disambiguated names', async () => {
-  const project = await loadSeed('omnisled-both.json');
+test('omnisled-full-and-mini carries every part from both sleds under disambiguated names', async () => {
+  const project = await loadSeed('omnisled-full-and-mini.json');
   const names = project.parts.map((part) => part.name);
   for (const expected of [
     'Full Base', 'Full Base Riser', 'Full Beveled Fence', 'Full Front Fence', 'Full Back Fence',
     'Mini Base', 'Mini Base Riser', 'Mini Beveled Fence', 'Mini Front Fence', 'Mini Back Fence',
   ]) {
-    assert.ok(names.includes(expected), `omnisled-both is missing ${expected}`);
+    assert.ok(names.includes(expected), `omnisled-full-and-mini is missing ${expected}`);
   }
   assert.equal(project.unplanned.length, 2);
   assert.deepEqual(

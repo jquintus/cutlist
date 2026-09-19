@@ -153,6 +153,68 @@
       "grainLocked": false
     }
   ],
+  "supplies": [
+    {
+      "id": "s17898293629211",
+      "name": "T-Track",
+      "qty": 2,
+      "packQty": 2,
+      "onHand": false,
+      "price": "27.99",
+      "note": "4 Feet each",
+      "url": "https://www.amazon.com/dp/B07ZC1RZRC?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1"
+    },
+    {
+      "id": "s17898293901232",
+      "name": "Threaded insert",
+      "qty": 16,
+      "packQty": 50,
+      "onHand": false,
+      "price": "16.02",
+      "note": "1/4\" 20",
+      "url": "https://www.amazon.com/dp/B0CLB9VW9C?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1"
+    },
+    {
+      "id": "s17898296363543",
+      "name": "Hex Socket Cap",
+      "qty": 16,
+      "packQty": 20,
+      "onHand": false,
+      "price": "7.06",
+      "note": "1/4\" 20",
+      "url": "https://www.amazon.com/dp/B0DG21PWBJ?th=1&linkCode=sl1&tag=bustedknuck08-20&linkId=b30c5a86664d1bcf961d638a96b318f8&language=en_US"
+    },
+    {
+      "id": "s17898298639654",
+      "name": "T-Bolts",
+      "qty": 2,
+      "packQty": 20,
+      "onHand": true,
+      "price": "11.99",
+      "note": " 1/4\" 20",
+      "url": "https://www.amazon.com/POWERTEC-QTB1004-4-Inch-20-1-Inch-20-Pack/dp/B0765P73TH?crid=2DML97H1A6MZO&dib=eyJ2IjoiMSJ9.kfEjhPko1g661yD4xbYhXrzbix7YhpmKtAQEEAAiB6WUla7x4gPcX1IFeaGguTg-fl4LifS9d4rqj7e5r3WdCvMOvNQfZevAtjM1lF5oWCU7p4P_8oclC4IuZO4R8bwTSIdBlnxoBgnWa0W1aqGuE71HP6snMti9hIaekbGfovtGk5Kxd_aK_HnZOwEk6W-uHcWq9RBv4wxbrpiQss2MnFBXMd46s9SzSgHWgIZhODaDrg2TYQL8SoDTPEMsM4Ou2JzHiffOk0ANS7ELyf6i-O3M3HZy6w5DbQADhoPaX18.nD5bOv_k8OA8hfLOppdxY9Sd_eGtk0TK4xRjJldRjGQ&dib_tag=se&keywords=t%2Btrack%2Bbolt&qid=1765468717&s=industrial&sprefix=t%2Btrack%2Bbolt%2Cindustrial%2C111&sr=1-1-spons&sp_csd=d2lkZ2V0TmFtZT1zcF9hdGY&th=1&linkCode=sl1&tag=bustedknuck08-20&linkId=b0056091694e284a66cca81ad0f1c70f&language=en_US"
+    },
+    {
+      "id": "s17898298828455",
+      "name": "T-Bolt knobs",
+      "qty": 2,
+      "packQty": 20,
+      "onHand": true,
+      "price": "7.99",
+      "note": " 1/4\" 20",
+      "url": "https://www.rockler.com/rockler-easy-to-grip-5-star-knobs-threaded-insert"
+    },
+    {
+      "id": "s17898299996816",
+      "name": "5/8\" Wood Screws",
+      "qty": 100,
+      "packQty": 100,
+      "onHand": true,
+      "price": "8.99",
+      "note": "",
+      "url": "https://www.amazon.com/POWERTEC-QWS1003V-Phillips-Thread-Screws/dp/B07HWQDZR5?crid=1MLYJRERERVGK&dib=eyJ2IjoiMSJ9.UxGFs1W-DNi03VV3JMUlqUY0c1MtTamhCb3qzwgyqsfcdnGNupSvax4WN1v5g3TpC4cVYQFn83x66bmWOPTVNTdu449m03tIWxkdPidMR-hsM6kG22Nf0v4x3-0kVYuk_N93BJ2IxoKHCPHfpk0uyujwx7JOL5PKLmUR4CD6KBFFtEoqVz2Uh1zjF54frbDdzoUGM02TdSfYHF7sLQiOpoAJ2QolYKzkLkCINarVDdM.OlF5FthirX7tLkAHmfCYFGoJuuwps7Nb541MrvR6Ilc&dib_tag=se&keywords=6%2Bx%2B1%2F2%2Bwood%2Bscrews&qid=1765849053&sprefix=6%2Bx%2B1%2F2%2Bwood%2Bscrews%2Caps%2C172&sr=8-22&th=1&linkCode=sl1&tag=bustedknuck08-20&linkId=a333923fd69e631197b166143b016689&language=en_US"
+    }
+  ],
   "unplanned": [
     {
       "name": "Full Miter Bar",
