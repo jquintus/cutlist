@@ -116,6 +116,21 @@
           "qty": 1
         }
       ]
+    },
+    {
+      "kind": "sheet",
+      "id": "f02175f9-80fc-4f26-85a5-1d6d4bac327e",
+      "name": "Estate Sale 2024",
+      "thicknessIn": "1/2\"",
+      "note": "The sheets I picked up from the estate sale with Jordan",
+      "sheets": [
+        {
+          "id": "1c8cfba2-a69c-4815-b369-826b402d610e",
+          "widthIn": 24,
+          "lengthIn": 48,
+          "qty": 3
+        }
+      ]
     }
   ]
 }
